@@ -10,6 +10,8 @@ To start a new project fast without starting it half-built. A fresh project gets
 
 Keep it that way. A change should make the starting point better for most projects, not add options for one of them.
 
+**Build on what is here, don't start over.** Before writing anything, look for the piece djext already has (login, users, logging, audit, rate limits, tasks, cron, email, storage, the typed API client, the UI components) and extend it. Don't write a parallel version of it, swap it for another library or scaffold a new structure next to the existing one. If something is missing or doesn't fit, say so before working around it.
+
 ## Architecture decisions
 
 - **Decoupled.** Django owns data, auth, the admin and background work, and serves only an API. Next.js owns the UI. Each side has its own folder and deploys on its own (the frontend can go to Vercel).
