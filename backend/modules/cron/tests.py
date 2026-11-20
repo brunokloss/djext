@@ -120,22 +120,21 @@ class ShippedJobsTest(TestCase):
                 self.assertEqual(registry.SCHEDULE_REGISTRY[name][0], "0 5 * * *")
                 self.assertTrue(CronSchedule.objects.get(name=name).enabled)
 
-    def test_audit_purge_calls_the_command_by_name(self):
-        from .tasks import audit_purge
-
-        with patch("modules.cron.tasks.call_command") as call:
-            audit_purge.func()
-        call.assert_called_once_with("audit_purge")
-
-    def test_audit_purge_does_nothing_without_the_audit_module(self):
-        from .tasks import audit_purge
-
-        with (
-            patch("modules.cron.tasks.get_commands", return_value={}),
-            patch("modules.cron.tasks.call_command") as call,
-        ):
-            audit_purge.func()
-        call.assert_not_called()
+    def test_each_module_s_jobs_are_found_in_its_jobs_py(self):
+        registry.sync_schedules()
+        for name, module in [
+            ("audit_purge", "modules.audit.jobs"),
+            ("idempotency_purge", "modules.idempotency.jobs"),
+            ("cache_purge", "modules.cache.jobs"),
+            ("session_purge", "modules.session.jobs"),
+            ("mail_purge", "modules.mail.jobs"),
+            ("enqueue_due_emails", "modules.mail.jobs"),
+            ("task_result_purge", "modules.cron.jobs"),
+        ]:
+            with self.subTest(name):
+                func = registry.SCHEDULE_REGISTRY[name][1].func
+                self.assertEqual(func.__module__, module)
+                self.assertTrue(CronSchedule.objects.get(name=name).enabled)
 
 
 class RenamedJobsMigrationTest(TestCase):
@@ -162,7 +161,7 @@ class RetentionTest(TestCase):
     def test_task_result_purge_drops_old_runs_too(self):
         import uuid
 
-        from .tasks import task_result_purge
+        from .jobs import task_result_purge
 
         old = CronRun.objects.create(
             schedule=self.schedule, task_result_id=uuid.uuid4()
@@ -173,7 +172,7 @@ class RetentionTest(TestCase):
         CronRun.objects.filter(pk=old.pk).update(
             created_at=timezone.now() - timedelta(days=8)
         )
-        with patch("modules.cron.tasks.call_command") as command:
+        with patch("modules.cron.jobs.call_command") as command:
             task_result_purge.func()
         command.assert_called_once_with(
             "prune_db_task_results", min_age_days=7, queue_name="*"
@@ -194,7 +193,7 @@ class RetentionTest(TestCase):
 
     @override_settings(ADMIN_LOG_RETENTION_DAYS=30)
     def test_admin_log_purge(self):
-        from .tasks import admin_log_purge
+        from .jobs import admin_log_purge
 
         self.admin_entries(31)
         entries = self.admin_entries(1)
@@ -203,7 +202,7 @@ class RetentionTest(TestCase):
 
     @override_settings(ADMIN_LOG_RETENTION_DAYS=0)
     def test_admin_log_purge_off(self):
-        from .tasks import admin_log_purge
+        from .jobs import admin_log_purge
 
         entries = self.admin_entries(5000)
         admin_log_purge.func()
@@ -212,22 +211,22 @@ class RetentionTest(TestCase):
 
 @contextmanager
 def development_jobs():
-    """modules/cron/tasks.py with DEBUG on, so test_heartbeat and test_always_fails
+    """modules/cron/jobs.py with DEBUG on, so test_heartbeat and test_always_fails
     exist; the registry is put back as it was after."""
     import importlib
 
-    from . import tasks
+    from . import jobs
 
     names = ("test_heartbeat", "test_always_fails")
     try:
         with override_settings(DEBUG=True):
-            importlib.reload(tasks)
-        yield tasks
+            importlib.reload(jobs)
+        yield jobs
     finally:
         for name in names:
             registry.SCHEDULE_REGISTRY.pop(name, None)
             registry.STARTS_ENABLED.pop(name, None)
-        importlib.reload(tasks)
+        importlib.reload(jobs)
 
 
 class DevelopmentJobsTest(TestCase):
@@ -236,16 +235,16 @@ class DevelopmentJobsTest(TestCase):
         self.assertNotIn("test_heartbeat", registry.SCHEDULE_REGISTRY)
 
     def test_test_always_fails_fails_on_purpose(self):
-        with development_jobs() as tasks:
+        with development_jobs() as jobs:
             with self.assertRaisesMessage(RuntimeError, "on purpose"):
-                tasks.test_always_fails.func()
+                jobs.test_always_fails.func()
 
     def test_the_heartbeat_waits_a_little_and_says_it_is_alive(self):
         with (
-            development_jobs() as tasks,
-            patch("modules.cron.tasks.time.sleep") as sleep,
+            development_jobs() as jobs,
+            patch("modules.cron.jobs.time.sleep") as sleep,
         ):
-            tasks.test_heartbeat.func()
+            jobs.test_heartbeat.func()
         [(seconds,), _] = sleep.call_args
         self.assertTrue(0.05 <= seconds <= 0.4)
 
@@ -311,9 +310,9 @@ class ModelTest(TestCase):
         self.assertEqual(registry.SCHEDULE_REGISTRY["cleanup"][0], "0 1 * * *")
 
     def test_the_task_is_left_as_it_was(self):
-        from . import tasks
+        from . import jobs
 
-        self.assertIs(registry.SCHEDULE_REGISTRY[NAME][1], tasks.task_result_purge)
+        self.assertIs(registry.SCHEDULE_REGISTRY[NAME][1], jobs.task_result_purge)
 
 
 class AdminTest(TestCase):
@@ -347,7 +346,7 @@ class CronListNameTest(TestCase):
             )
         )
         page = self.client.get("/admin/cron/cronschedule/")
-        self.assertContains(page, "modules.cron.tasks.task_result_purge")
+        self.assertContains(page, "modules.cron.jobs.task_result_purge")
 
     def test_a_job_no_longer_in_code_keeps_its_name(self):
         gone = CronSchedule.objects.create(name="old_job")
@@ -362,7 +361,7 @@ class TaskResultAdminTest(TestCase):
         result = DBTaskResult.objects.create(
             status="FAILED",
             args_kwargs={"args": [], "kwargs": {}},
-            task_path="modules.cron.tasks.task_result_purge",
+            task_path="modules.cron.jobs.task_result_purge",
             queue_name="scheduled_tasks",
             backend_name="default",
             exception_class_path="builtins.RuntimeError",

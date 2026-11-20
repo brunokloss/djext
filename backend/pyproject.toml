@@ -66,6 +66,8 @@ type = "independence"
 modules = ["modules.*"]
 ignore_imports = [
     "modules.** -> modules.signals.**",
+    # A module's own cron jobs: only modules/cron imports a `jobs.py`.
+    "modules.*.jobs -> modules.cron.registry",
     # Tests of how two modules work together, skipped when the other is out.
     "modules.log.tests -> modules.cron.**",
     "modules.queue.tests -> modules.mail.**",

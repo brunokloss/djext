@@ -325,7 +325,7 @@ class TaskLogTest(TestCase):
         return SimpleNamespace(
             id=UUID("729471aa-accb-4725-8843-4cfdc8623b05"),
             task=SimpleNamespace(
-                queue_name="scheduled_tasks", module_path="modules.cron.tasks.x"
+                queue_name="scheduled_tasks", module_path="modules.cron.jobs.x"
             ),
             status="RUNNING",
             worker_ids=list(workers),
@@ -337,9 +337,9 @@ class TaskLogTest(TestCase):
         result = self.result()
         with capture("modules") as lines:
             task_started.send(sender=None, task_result=result)
-            logging.getLogger("modules.cron.tasks").info("working")
+            logging.getLogger("modules.cron.jobs").info("working")
             task_finished.send(sender=None, task_result=result)
-            logging.getLogger("modules.cron.tasks").info("after")
+            logging.getLogger("modules.cron.jobs").info("after")
         working, after = lines
         self.assertEqual(working["tsk"], "729471aa-accb-4725-8843-4cfdc8623b05")
         self.assertEqual(working["que"], "scheduled_tasks")
@@ -465,5 +465,5 @@ class WorkerChannelTest(TestCase):
         self.assertEqual(self.channel_of("django.tasks"), "worker")
 
     def test_our_code_is_the_worker_channel_only_while_a_task_runs(self):
-        self.assertEqual(self.channel_of("modules.cron.tasks", in_task=True), "worker")
+        self.assertEqual(self.channel_of("modules.cron.jobs", in_task=True), "worker")
         self.assertEqual(self.channel_of("modules.cron.registry"), "app")
