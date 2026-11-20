@@ -44,6 +44,7 @@ Run from the repo root:
 - Models inherit `apps.core.models.BaseModel`.
 - Every operation goes through a service, even a trivial one: a function in the app's `services.py` that the API, the admin, tasks, commands and any new entry point (an MCP tool, a webhook) call. Views stay boring: read the request, call the service, shape the answer. So a new way in is a thin adapter, and the rules, the audit log and the side effects come with it.
 - A service takes the user it acts for, never the HTTP request. Outside a request (a task, a command, an MCP tool), call it inside `with acting_as(user):` (`modules/signals/context.py`) so the audit log and the logs know who did it.
+- `backend/apps/note` is the example to copy: model, services, thin API, idempotent POSTs, an action, a cron job, tests for the services and the API, and the page.
 - Don't add database queries to failure paths (a failed login, a rejected key) just to enrich a log line.
 - A new env var follows the prefix of its siblings and goes in the matching `.env.example`.
 - Change the docs (module README, `docs/`) in the same change as the code. Keep them short; point to `/api/docs` instead of listing endpoints.
