@@ -123,15 +123,20 @@ export function SignupForm() {
   );
 }
 
-// A button, not a request on page load: mail scanners open links, and must
-// not use them up.
+// A form, not a request on page load: mail scanners open links, and must
+// not use them up. It asks for the password the account was signed up with,
+// so someone who signed up with another person's email can't have it
+// confirmed for them. A dead link offers a new one.
 export function VerifyEmail({ uid, token }: { uid: string; token: string }) {
-  const [state, verify, pending] = useActionState(async (): Promise<State> => {
-    const { error } = await api.POST("/api/auth/verify", {
-      body: { uid, token },
-    });
-    return error ? { error: error.detail } : { done: true };
-  }, {});
+  const [state, verify, pending] = useActionState(
+    async (_previous: State, form: FormData): Promise<State> => {
+      const { error } = await api.POST("/api/auth/verify", {
+        body: { uid, token, password: String(form.get("password")) },
+      });
+      return error ? { error: error.detail } : { done: true };
+    },
+    {},
+  );
   if (state.done)
     return (
       <>
@@ -143,33 +148,49 @@ export function VerifyEmail({ uid, token }: { uid: string; token: string }) {
     );
 
   return (
-    <form action={verify} className="flex flex-col gap-4">
-      <Alert error={state.error} />
-      <Button type="submit" disabled={pending}>
-        {pending ? "Confirming…" : "Confirm my email"}
-      </Button>
-    </form>
+    <>
+      <form action={verify} className="flex flex-col gap-4">
+        <Field
+          id="password"
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+        />
+        <Alert error={state.error} />
+        <Button type="submit" disabled={pending}>
+          {pending ? "Confirming…" : "Confirm my email"}
+        </Button>
+      </form>
+      {state.error && (
+        <EmailLinkForm
+          path="/api/auth/verify/resend"
+          button="Send a new link"
+          sent={(email) =>
+            `If ${email} is waiting for its confirmation, a new link is on its way.`
+          }
+        />
+      )}
+    </>
   );
 }
 
-export function ForgotPasswordForm() {
+// Asks for an email and has a link sent to it. The answer is the same
+// whether the email has an account or not.
+function EmailLinkForm({
+  path,
+  button,
+  sent,
+}: {
+  path: "/api/auth/password/forgot" | "/api/auth/verify/resend";
+  button: string;
+  sent: (email: string) => string;
+}) {
   const [email, setEmail] = useState("");
   const [state, send, pending] = useActionState(async (): Promise<State> => {
-    const { error } = await api.POST("/api/auth/password/forgot", {
-      body: { email },
-    });
+    const { error } = await api.POST(path, { body: { email } });
     return error ? { error: error.detail } : { done: true };
   }, {});
-  if (state.done)
-    return (
-      <>
-        <Done>
-          If {email} has an account, a link to choose a new password is on its
-          way.
-        </Done>
-        <BackToLogin />
-      </>
-    );
+  if (state.done) return <Done>{sent(email)}</Done>;
 
   return (
     <form action={send} className="flex flex-col gap-4">
@@ -183,10 +204,24 @@ export function ForgotPasswordForm() {
       />
       <Alert error={state.error} />
       <Button type="submit" disabled={pending}>
-        {pending ? "Sending…" : "Send the link"}
+        {pending ? "Sending…" : button}
       </Button>
-      <BackToLogin />
     </form>
+  );
+}
+
+export function ForgotPasswordForm() {
+  return (
+    <>
+      <EmailLinkForm
+        path="/api/auth/password/forgot"
+        button="Send the link"
+        sent={(email) =>
+          `If ${email} has an account, a link to choose a new password is on its way.`
+        }
+      />
+      <BackToLogin />
+    </>
   );
 }
 

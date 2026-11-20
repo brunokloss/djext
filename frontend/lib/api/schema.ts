@@ -236,8 +236,9 @@ export interface paths {
         put?: never;
         /**
          * Verify
-         * @description Activates the account from the link in the email. 400 when the link is
-         *     wrong, expired or used already. Log in afterwards.
+         * @description Activates the account from the link in the email, given the password
+         *     it was signed up with. 400 when the link is wrong, expired or used
+         *     already, or the password is wrong. Log in afterwards.
          */
         post: operations["modules_signup_api_verify"];
         delete?: never;
@@ -742,6 +743,8 @@ export interface components {
         };
         /** VerifyIn */
         VerifyIn: {
+            /** Password */
+            password: string;
             /** Token */
             token: string;
             /** Uid */

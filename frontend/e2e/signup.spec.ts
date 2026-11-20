@@ -40,15 +40,16 @@ test("sign up, confirm the email and log in", async ({ page }) => {
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign up" }).click();
-  await expect(page.getByRole("status")).toContainText("Check your email");
+  await expect(page.getByText("Check your email")).toBeVisible();
 
   // Not active yet.
   await login(page, email, password);
   await expect(page.getByText("Invalid email or password")).toBeVisible();
 
   await page.goto(lastLink(email));
+  await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Confirm my email" }).click();
-  await expect(page.getByRole("status")).toContainText("confirmed");
+  await expect(page.getByText("Your email is confirmed")).toBeVisible();
 
   await login(page, email, password);
   await expect(page).toHaveURL("/");
@@ -76,19 +77,21 @@ get_user_model().objects.create_user(email=${JSON.stringify(email)}, password="o
   await page.getByRole("link", { name: "Forgot your password?" }).click();
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Send the link" }).click();
-  await expect(page.getByRole("status")).toContainText("on its way");
+  await expect(page.getByText("is on its way")).toBeVisible();
 
   const link = lastLink(email);
   await page.goto(link);
   await page.getByLabel("New password").fill("a-brand-new-password");
   await page.getByRole("button", { name: "Save the password" }).click();
-  await expect(page.getByRole("status")).toContainText("password was changed");
+  await expect(page.getByText("Your password was changed")).toBeVisible();
 
   // The link works once.
   await page.goto(link);
   await page.getByLabel("New password").fill("yet-another-password");
   await page.getByRole("button", { name: "Save the password" }).click();
-  await expect(page.getByRole("alert")).toContainText("invalid or has expired");
+  await expect(
+    page.getByText("This link is invalid or has expired"),
+  ).toBeVisible();
 
   await login(page, email, "a-brand-new-password");
   await expect(page).toHaveURL("/");
