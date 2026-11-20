@@ -419,10 +419,10 @@ class TaskLogTest(TestCase):
         from modules.cron.models import CronSchedule
 
         registry.sync_schedules()
-        schedule = CronSchedule.objects.get(name="prune_task_results")
+        schedule = CronSchedule.objects.get(name="task_result_purge")
         with capture("scheduler") as lines:
             run = registry.enqueue_for_schedule(
-                schedule, registry.SCHEDULE_REGISTRY["prune_task_results"][1]
+                schedule, registry.SCHEDULE_REGISTRY["task_result_purge"][1]
             )
         self.assertEqual(lines[0]["tsk"], str(run.task_result_id))
         self.assertEqual(lines[0]["channel"], "scheduler")
@@ -435,11 +435,11 @@ class TaskLogTest(TestCase):
         from modules.cron.models import CronSchedule
 
         registry.sync_schedules()
-        schedule = CronSchedule.objects.get(name="prune_task_results")
+        schedule = CronSchedule.objects.get(name="task_result_purge")
         admin = User.objects.create_superuser(email="a@example.com", password="x")
         with capture("scheduler") as lines:
             registry.enqueue_for_schedule(
-                schedule, registry.SCHEDULE_REGISTRY["prune_task_results"][1], by=admin
+                schedule, registry.SCHEDULE_REGISTRY["task_result_purge"][1], by=admin
             )
         self.assertEqual(lines[0]["src"], "manual")
         self.assertEqual(lines[0]["usr"], admin.username)

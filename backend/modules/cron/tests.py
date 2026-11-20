@@ -18,9 +18,9 @@ from . import registry
 from .admin import CronScheduleAdmin
 from .models import CronRun, CronSchedule
 
-# 05:00 UTC: when `prune_task_results` ("0 5 * * *") is due.
+# 05:00 UTC: when `task_result_purge` ("0 5 * * *") is due.
 DUE = timezone.datetime(2026, 1, 1, 5, 0, tzinfo=UTC)
-NAME = "prune_task_results"
+NAME = "task_result_purge"
 
 
 @registry.scheduled("0 4 * * *")
@@ -50,7 +50,7 @@ class SyncTest(TestCase):
 class TickTest(TestCase):
     def setUp(self):
         registry.sync_schedules()
-        # Only prune_task_results: the other shipped job is due at the same time.
+        # Only task_result_purge: the other shipped job is due at the same time.
         CronSchedule.objects.exclude(name=NAME).update(enabled=False)
         self.schedule = CronSchedule.objects.get(name=NAME)
 
@@ -115,7 +115,7 @@ class TickTest(TestCase):
 class ShippedJobsTest(TestCase):
     def test_housekeeping_runs_at_5_utc_and_starts_on(self):
         registry.sync_schedules()
-        for name in ("prune_task_results", "audit_purge"):
+        for name in ("task_result_purge", "audit_purge"):
             with self.subTest(name):
                 self.assertEqual(registry.SCHEDULE_REGISTRY[name][0], "0 5 * * *")
                 self.assertTrue(CronSchedule.objects.get(name=name).enabled)
@@ -136,6 +136,78 @@ class ShippedJobsTest(TestCase):
         ):
             audit_purge.func()
         call.assert_not_called()
+
+
+class RenamedJobsMigrationTest(TestCase):
+    def test_old_rows_take_the_new_names(self):
+        from importlib import import_module
+
+        from django.apps import apps as global_apps
+
+        from .migrations import __name__ as package
+
+        migration = import_module(f"{package}.0002_rename_purge_jobs")
+        CronSchedule.objects.create(name="clear_sessions", enabled=False)
+        migration.rename(global_apps, None, migration.RENAMED)
+        self.assertFalse(CronSchedule.objects.get(name="session_purge").enabled)
+        self.assertFalse(CronSchedule.objects.filter(name="clear_sessions").exists())
+
+
+class RetentionTest(TestCase):
+    def setUp(self):
+        registry.sync_schedules()
+        self.schedule = CronSchedule.objects.first()
+
+    @override_settings(TASK_RESULT_RETENTION_DAYS=7)
+    def test_task_result_purge_drops_old_runs_too(self):
+        import uuid
+
+        from .tasks import task_result_purge
+
+        old = CronRun.objects.create(
+            schedule=self.schedule, task_result_id=uuid.uuid4()
+        )
+        new = CronRun.objects.create(
+            schedule=self.schedule, task_result_id=uuid.uuid4()
+        )
+        CronRun.objects.filter(pk=old.pk).update(
+            created_at=timezone.now() - timedelta(days=8)
+        )
+        with patch("modules.cron.tasks.call_command") as command:
+            task_result_purge.func()
+        command.assert_called_once_with(
+            "prune_db_task_results", min_age_days=7, queue_name="*"
+        )
+        self.assertEqual(list(CronRun.objects.all()), [new])
+
+    def admin_entries(self, days_ago):
+        from django.contrib.admin.models import ADDITION, LogEntry
+
+        user = get_user_model().objects.create_user(email=f"u{days_ago}@example.com")
+        entry = LogEntry.objects.create(
+            user=user, object_repr="x", action_flag=ADDITION
+        )
+        LogEntry.objects.filter(pk=entry.pk).update(
+            action_time=timezone.now() - timedelta(days=days_ago)
+        )
+        return LogEntry.objects
+
+    @override_settings(ADMIN_LOG_RETENTION_DAYS=30)
+    def test_admin_log_purge(self):
+        from .tasks import admin_log_purge
+
+        self.admin_entries(31)
+        entries = self.admin_entries(1)
+        admin_log_purge.func()
+        self.assertEqual(entries.count(), 1)
+
+    @override_settings(ADMIN_LOG_RETENTION_DAYS=0)
+    def test_admin_log_purge_off(self):
+        from .tasks import admin_log_purge
+
+        entries = self.admin_entries(5000)
+        admin_log_purge.func()
+        self.assertEqual(entries.count(), 1)
 
 
 @contextmanager
@@ -241,7 +313,7 @@ class ModelTest(TestCase):
     def test_the_task_is_left_as_it_was(self):
         from . import tasks
 
-        self.assertIs(registry.SCHEDULE_REGISTRY[NAME][1], tasks.prune_task_results)
+        self.assertIs(registry.SCHEDULE_REGISTRY[NAME][1], tasks.task_result_purge)
 
 
 class AdminTest(TestCase):
@@ -275,7 +347,7 @@ class CronListNameTest(TestCase):
             )
         )
         page = self.client.get("/admin/cron/cronschedule/")
-        self.assertContains(page, "modules.cron.tasks.prune_task_results")
+        self.assertContains(page, "modules.cron.tasks.task_result_purge")
 
     def test_a_job_no_longer_in_code_keeps_its_name(self):
         gone = CronSchedule.objects.create(name="old_job")
@@ -290,7 +362,7 @@ class TaskResultAdminTest(TestCase):
         result = DBTaskResult.objects.create(
             status="FAILED",
             args_kwargs={"args": [], "kwargs": {}},
-            task_path="modules.cron.tasks.prune_task_results",
+            task_path="modules.cron.tasks.task_result_purge",
             queue_name="scheduled_tasks",
             backend_name="default",
             exception_class_path="builtins.RuntimeError",

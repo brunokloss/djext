@@ -172,3 +172,18 @@ class CachesFromUrlTests(SimpleTestCase):
     def test_other_schemes_fail(self):
         with self.assertRaises(ValueError):
             caches_from_url("memcached://x", max_entries=5)
+
+
+class PurgeExpiredTest(TestCase):
+    def test_deletes_only_the_expired_in_batches(self):
+        from .management.commands.cache_purge import purge_expired
+
+        for i in range(5):
+            cache.set(f"old{i}", i, timeout=60)
+        cache.set("fresh", 1, timeout=3600)
+        CacheEntry.objects.filter(cache_key__contains="old").update(
+            expires=timezone.now() - timedelta(minutes=1)
+        )
+        self.assertEqual(purge_expired(batch=2), 5)
+        self.assertEqual(cache.get("fresh"), 1)
+        self.assertEqual(CacheEntry.objects.count(), 1)

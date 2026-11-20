@@ -4,12 +4,15 @@
 import logging
 import random
 import time
+from datetime import timedelta
 
 from django.apps import apps
 from django.conf import settings
 from django.core.management import call_command, get_commands
 from django.tasks import task
+from django.utils import timezone
 
+from .models import CronRun
 from .registry import scheduled
 
 logger = logging.getLogger(__name__)
@@ -17,12 +20,33 @@ logger = logging.getLogger(__name__)
 
 @scheduled("0 5 * * *", enabled=True)
 @task(queue_name="scheduled_tasks")
-def prune_task_results(min_age_days: int = 7) -> None:
-    """Daily: delete finished task results older than `min_age_days`.
+def task_result_purge() -> None:
+    """Daily: delete finished task results and cron runs older than
+    TASK_RESULT_RETENTION_DAYS.
 
-    Uses django-tasks-db's own command, so its retention rules stay its own.
+    Results go through django-tasks-db's own command, so its retention rules
+    stay its own. The runs only point at results, which are gone by then.
     """
-    call_command("prune_db_task_results", min_age_days=min_age_days, queue_name="*")
+    days = settings.TASK_RESULT_RETENTION_DAYS
+    call_command("prune_db_task_results", min_age_days=days, queue_name="*")
+    cutoff = timezone.now() - timedelta(days=days)
+    count, _ = CronRun.objects.filter(created_at__lt=cutoff).delete()
+    logger.info("task_result_purge: deleted %s cron runs", count)
+
+
+@scheduled("20 5 * * *", enabled=True)
+@task(queue_name="scheduled_tasks")
+def admin_log_purge() -> None:
+    """Daily: delete the admin's history (django_admin_log) older than
+    ADMIN_LOG_RETENTION_DAYS (0 keeps it)."""
+    days = settings.ADMIN_LOG_RETENTION_DAYS
+    if days <= 0 or not apps.is_installed("django.contrib.admin"):
+        return
+    from django.contrib.admin.models import LogEntry
+
+    cutoff = timezone.now() - timedelta(days=days)
+    count, _ = LogEntry.objects.filter(action_time__lt=cutoff).delete()
+    logger.info("admin_log_purge: deleted %s entries", count)
 
 
 @scheduled("0 5 * * *", enabled=True)
@@ -53,6 +77,18 @@ def idempotency_purge() -> None:
     call_command("idempotency_purge")
 
 
+@scheduled("25 5 * * *", enabled=True)
+@task(queue_name="scheduled_tasks")
+def cache_purge() -> None:
+    """Daily: delete the database cache's expired entries, a batch at a time,
+    so no request ever pays for deleting a big backlog.
+
+    Called by name, like audit_purge: without modules/cache there is nothing to do.
+    """
+    if "cache_purge" in get_commands():
+        call_command("cache_purge")
+
+
 @scheduled("* * * * *", enabled=True)
 @task(queue_name="scheduled_tasks")
 def enqueue_due_emails() -> None:
@@ -68,7 +104,7 @@ def enqueue_due_emails() -> None:
 
 @scheduled("30 5 * * *", enabled=True)
 @task(queue_name="scheduled_tasks")
-def cleanup_mail() -> None:
+def mail_purge() -> None:
     """Daily: delete emails older than EMAIL_RETENTION_DAYS (0 keeps them)."""
     days = settings.EMAIL_RETENTION_DAYS
     if days > 0 and "cleanup_mail" in get_commands():
@@ -77,7 +113,7 @@ def cleanup_mail() -> None:
 
 @scheduled("15 5 * * *", enabled=True)
 @task(queue_name="scheduled_tasks")
-def clear_sessions() -> None:
+def session_purge() -> None:
     """Daily: delete expired sessions (Django's `clearsessions`)."""
     call_command("clearsessions")
 

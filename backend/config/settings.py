@@ -68,8 +68,9 @@ CSRF_COOKIE_SECURE = not DEBUG
 # security-headers.ts), so Django doesn't. To have Django redirect instead,
 # uncomment this (and drop security.W008 from SILENCED_SYSTEM_CHECKS).
 # SECURE_SSL_REDIRECT = True
-# How long a login lasts (Django's default: 2 weeks).
-# SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
+# How long a login lasts, in seconds (Django's default: 2 weeks). Expired
+# sessions are deleted by `session_purge`, a daily job of modules/cron.
+SESSION_COOKIE_AGE = config("SESSION_COOKIE_AGE", default=60 * 60 * 24 * 14, cast=int)
 # `check --deploy` (run in CI) asks for HSTS, which Next sends, and the HTTPS
 # redirect, which the load balancer does.
 SILENCED_SYSTEM_CHECKS = ["security.W004", "security.W008"]
@@ -284,6 +285,9 @@ AUDIT_MODELS = {
 # 0 keeps everything. Personal data (IP, browser, old and new values) should
 # not live forever: pick the shortest time your obligations allow.
 AUDIT_RETENTION_DAYS = config("AUDIT_RETENTION_DAYS", default=1825, cast=int)
+# Days to keep the admin's own history (django_admin_log: who changed what in
+# the admin). 0 keeps it. The audit log has the full record.
+ADMIN_LOG_RETENTION_DAYS = config("ADMIN_LOG_RETENTION_DAYS", default=1825, cast=int)
 
 # Hours an Idempotency-Key keeps its response (modules/idempotency). A retry
 # after that runs the endpoint again; `idempotency_purge` (a daily job of
@@ -306,6 +310,9 @@ CRON_TASK_MODULES = ["modules.cron.tasks"]
 CRON_AUTO_ENABLE_NEW_TASKS = config(
     "CRON_AUTO_ENABLE_NEW_TASKS", default=False, cast=bool
 )
+# Days to keep finished task results and the cron's run history (one row per
+# enqueue: a job every minute makes 525,600 a year). Pruned daily.
+TASK_RESULT_RETENTION_DAYS = config("TASK_RESULT_RETENTION_DAYS", default=7, cast=int)
 
 
 # Password validation
