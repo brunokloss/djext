@@ -40,7 +40,7 @@ Built on "all you need is Postgres", for starting small projects without extra m
 - Node.js 24 (see `frontend/.nvmrc`; 22.22+ also works) and npm
 - Optional: [Docker](https://docs.docker.com/get-docker/), only for the local Postgres (see [Postgres](docs/development.md#postgres-optional))
 - `make`
-- Optional: VS Code. `.vscode/` sets up the venv interpreter and formats on save (Ruff for Python, Biome for the frontend); install the recommended extensions it suggests. Run `make install` first so the venv and `node_modules` exist.
+- Optional: VS Code. `.vscode/` sets up the venv interpreter and formats on save (Ruff for Python, Biome for the frontend) and has debug configurations (Run and Debug: Django, its tests and task worker, Next.js, or "Full stack"); install the recommended extensions it suggests. Run `make install` first so the venv and `node_modules` exist.
 
 ## Getting started
 
