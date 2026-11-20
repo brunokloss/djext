@@ -6,7 +6,9 @@ Built on "all you need is Postgres", for starting small projects without extra m
 
 ## Why
 
-To start a new project fast without starting it half-built. Coding agents tend to write everything from scratch: a new login, new logging, a new folder layout, every time. djext is a small, tested base they can build on instead. A fresh project already has login, an admin back office, an audit log, structured logs, rate limits, background tasks, scheduled jobs, email, tests and CI. [AGENTS.md](AGENTS.md) tells agents how it is put together and why.
+This is the architecture I believe in for small products: a decoupled Django and Next.js, one Postgres, stock Django wherever it is enough, and the boring parts (login, logs, audit, background work) done once and done right.
+
+I use it to start a new project fast without starting it half-built. Coding agents tend to write everything from scratch: a new login, new logging, a new folder layout, every time. djext is a small, tested base they can build on instead. A fresh project already has login, an admin back office, an audit log, structured logs, rate limits, background tasks, scheduled jobs, email, tests and CI. [AGENTS.md](AGENTS.md) tells agents how it is put together and why.
 
 **djext is B2B.** The team creates the accounts in the admin. There is no self sign-up, email verification or password reset by email yet (see [#2](https://github.com/brunokloss/djext/issues/2)).
 
