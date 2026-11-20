@@ -58,35 +58,24 @@ def create_note(request: HttpRequest, data: NoteIn):
 @router.get("/notes/{uuid:note_id}", response={200: NoteOut, 404: NotFoundOut})
 def get_note(request: HttpRequest, note_id: UUID):
     """One of your notes (404 for anyone else's)."""
-    note = services.get_note(request.auth, note_id)
-    return note if note else NOT_FOUND
+    return services.get_note(request.auth, note_id) or NOT_FOUND
 
 
 @router.patch("/notes/{uuid:note_id}", response={200: NoteOut, 404: NotFoundOut})
 def update_note(request: HttpRequest, note_id: UUID, data: NotePatch):
     """Changes the fields you send."""
-    note = services.get_note(request.auth, note_id)
-    if note is None:
-        return NOT_FOUND
-    return services.update_note(note, **data.dict(exclude_unset=True))
+    fields = data.dict(exclude_unset=True)
+    return services.update_note(request.auth, note_id, **fields) or NOT_FOUND
 
 
 @router.delete("/notes/{uuid:note_id}", response={204: None, 404: NotFoundOut})
 def delete_note(request: HttpRequest, note_id: UUID):
     """Deletes one of your notes."""
-    note = services.get_note(request.auth, note_id)
-    if note is None:
-        return NOT_FOUND
-    services.delete_note(note)
-    return 204, None
+    return (204, None) if services.delete_note(request.auth, note_id) else NOT_FOUND
 
 
 @router.post("/notes/{uuid:note_id}/email", response={204: None, 404: NotFoundOut})
 @idempotent
 def email_note(request: HttpRequest, note_id: UUID):
     """Emails the note to you. With modules/mail it is queued and a worker sends it."""
-    note = services.get_note(request.auth, note_id)
-    if note is None:
-        return NOT_FOUND
-    services.email_note(request, note)
-    return 204, None
+    return (204, None) if services.email_note(request.auth, note_id) else NOT_FOUND
