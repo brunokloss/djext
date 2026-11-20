@@ -57,11 +57,36 @@ class SignupTest(SignupTestCase):
         self.assertEqual(User.objects.count(), 1)
         self.assertFalse(Email.objects.exists())
 
-    def test_signing_up_again_while_waiting_sends_the_link_again(self):
-        self.signup()
+    def test_signing_up_again_while_waiting_takes_the_new_password(self):
+        # Someone signed up with another person's email first: when that
+        # person signs up, their password wins and the first link is dead.
+        self.signup(password="someone-elses-password")
+        first = link(Email.objects.get())
         self.assertEqual(self.signup().status_code, 204)
         self.assertEqual(User.objects.count(), 1)
-        self.assertEqual(Email.objects.count(), 2)
+        second = link(Email.objects.latest("id"))
+        for found in (first, second):
+            del found["path"]
+        response = self.post("verify", password="someone-elses-password", **first)
+        self.assertEqual(response.status_code, 400)
+        response = self.post("verify", password=PASSWORD, **second)
+        self.assertEqual(response.status_code, 204)
+
+    def test_a_bad_email_or_a_long_name_is_refused(self):
+        for body in (
+            {"email": "not-an-email"},
+            {"email": "new@example.com", "first_name": "x" * 151},
+        ):
+            response = self.post("signup", password=PASSWORD, **body)
+            self.assertEqual(response.status_code, 400)
+        self.assertFalse(User.objects.exists())
+        self.assertFalse(Email.objects.exists())
+
+    @override_settings(AUTH_MAIL_THROTTLE_EMAIL="1/h")
+    def test_a_refused_sign_up_does_not_count_against_the_limit(self):
+        for _ in range(3):
+            self.assertEqual(self.signup(password="short").status_code, 400)
+        self.assertEqual(self.signup().status_code, 204)
 
     def test_a_weak_password_is_refused(self):
         response = self.signup(password="new@example.com")
@@ -87,7 +112,7 @@ class VerifyTest(SignupTestCase):
         self.path = self.link.pop("path")
 
     def verify(self, **body):
-        return self.post("verify", **{**self.link, **body})
+        return self.post("verify", **{**self.link, "password": PASSWORD, **body})
 
     def test_activates_the_user_once(self):
         self.assertEqual(self.path, "/verify")
@@ -100,8 +125,9 @@ class VerifyTest(SignupTestCase):
         # The link was used.
         self.assertEqual(self.verify().status_code, 400)
 
-    def test_a_wrong_token_or_uid_is_refused(self):
+    def test_a_wrong_token_uid_or_password_is_refused(self):
         self.assertEqual(self.verify(token="1-abc").status_code, 400)
+        self.assertEqual(self.verify(password="wrong").status_code, 400)
         self.assertEqual(self.verify(uid="not-a-user").status_code, 400)
         self.user.refresh_from_db()
         self.assertFalse(self.user.is_active)

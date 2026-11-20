@@ -30,6 +30,8 @@ class EmailIn(Schema):
 class VerifyIn(Schema):
     uid: str
     token: str
+    # The one they signed up with.
+    password: str
 
 
 class ResetIn(Schema):
@@ -106,14 +108,15 @@ def signup(request: HttpRequest, response: HttpResponse, data: SignupIn):
     password is too weak (AUTH_PASSWORD_VALIDATORS)."""
     if answer := refused(request, settings.AUTH_SIGNUP, "Sign-up"):
         return answer
-    if wait := mail_wait(request, data.email):
-        return too_many(response, wait)
+    # Checked before the limit: a refused password sends no email.
+    fields = (data.email, data.password, data.first_name, data.last_name)
     try:
-        account.sign_up(
-            request, data.email, data.password, data.first_name, data.last_name
-        )
+        account.check(*fields)
     except ValidationError as error:
         return invalid(error)
+    if wait := mail_wait(request, data.email):
+        return too_many(response, wait)
+    account.sign_up(request, *fields)
     return 204, None
 
 
@@ -133,12 +136,15 @@ def resend_verification(request: HttpRequest, response: HttpResponse, data: Emai
     "/auth/verify", response={204: None, 400: ErrorOut, 403: ErrorOut}, tags=["auth"]
 )
 def verify(request: HttpRequest, data: VerifyIn):
-    """Activates the account from the link in the email. 400 when the link is
-    wrong, expired or used already. Log in afterwards."""
+    """Activates the account from the link in the email, given the password
+    it was signed up with. 400 when the link is wrong, expired or used
+    already, or the password is wrong. Log in afterwards."""
     if answer := refused(request, settings.AUTH_SIGNUP, "Sign-up"):
         return answer
-    if account.verify(request, data.uid, data.token) is None:
-        return 400, {"detail": "This link is invalid or has expired."}
+    if account.verify(request, data.uid, data.token, data.password) is None:
+        return 400, {
+            "detail": "This link is invalid or has expired, or the password is wrong."
+        }
     return 204, None
 
 

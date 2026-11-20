@@ -44,20 +44,36 @@ def _send(request, user, template: str, path: str, token: str) -> None:
     )
 
 
-def sign_up(request, email: str, password: str, first_name="", last_name=""):
-    """Creates an inactive user and sends them the verification link. Raises
-    ValidationError for a password that fails AUTH_PASSWORD_VALIDATORS. An
-    email that has an account already gets nothing, unless it is still
-    waiting for its verification: then the link goes again."""
-    email = normalize_email(email)
-    validate_password(
-        password, User(email=email, first_name=first_name, last_name=last_name)
+def check(email: str, password: str, first_name="", last_name="") -> None:
+    """Raises ValidationError for what sign_up() can't take: a bad email, a
+    name too long, or a password that fails AUTH_PASSWORD_VALIDATORS. Asks
+    nothing of the database (not even whether the email is taken), so the
+    answer doesn't tell who has an account."""
+    user = User(
+        email=normalize_email(email), first_name=first_name, last_name=last_name
     )
+    user.clean_fields(exclude=["username", "password"])
+    validate_password(password, user)
+
+
+def sign_up(request, email: str, password: str, first_name="", last_name=""):
+    """Creates an inactive user and sends them the verification link; check()
+    first. An email that has an account already gets nothing, unless it is
+    still waiting for its verification: then the latest sign-up wins (its
+    password and names, which kills the earlier links) and a new link goes.
+    So someone who signed up with another person's email can't keep that
+    account: the link asks for the password (verify())."""
+    email = normalize_email(email)
     existing = User.objects.filter(email__iexact=email).first()
     if existing is not None:
-        # As long as creating one takes.
-        make_password(password)
-        _resend(request, existing)
+        if _waiting(existing):
+            existing.set_password(password)
+            existing.first_name, existing.last_name = first_name, last_name
+            existing.save(update_fields=["password", "first_name", "last_name"])
+            _send_verification(request, existing)
+        else:
+            # As long as creating one takes.
+            make_password(password)
         return
     try:
         with transaction.atomic():
@@ -75,7 +91,7 @@ def sign_up(request, email: str, password: str, first_name="", last_name=""):
     except IntegrityError:
         # Someone else signed up with this email at the same time.
         return
-    _send(request, user, VERIFY_TEMPLATE, "/verify", verify_tokens.make_token(user))
+    _send_verification(request, user)
 
 
 def _waiting(user) -> bool:
@@ -86,15 +102,14 @@ def _waiting(user) -> bool:
     )
 
 
-def _resend(request, user) -> None:
-    if _waiting(user):
-        _send(request, user, VERIFY_TEMPLATE, "/verify", verify_tokens.make_token(user))
+def _send_verification(request, user) -> None:
+    _send(request, user, VERIFY_TEMPLATE, "/verify", verify_tokens.make_token(user))
 
 
 def resend_verification(request, email: str) -> None:
     user = User.objects.filter(email__iexact=normalize_email(email)).first()
-    if user is not None:
-        _resend(request, user)
+    if user is not None and _waiting(user):
+        _send_verification(request, user)
 
 
 def _user(uid: str):
@@ -104,11 +119,15 @@ def _user(uid: str):
         return None
 
 
-def verify(request, uid: str, token: str):
-    """Activates the user the link was sent to. Returns them, or None when
-    the link is wrong, expired or used already."""
+def verify(request, uid: str, token: str, password: str):
+    """Activates the user the link was sent to, given the password they signed
+    up with: a link alone would activate whatever password was typed, maybe
+    by someone else. Returns them, or None when the link is wrong, expired or
+    used already, or the password is wrong."""
     user = _user(uid)
     if user is None or not verify_tokens.check_token(user, token):
+        return None
+    if not user.check_password(password):
         return None
     with transaction.atomic():
         # Locked: two clicks on the link activate them once.
