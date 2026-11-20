@@ -1,3 +1,7 @@
+// Where the browser sends its events, on this origin (proxy.ts lets it through
+// without login). The server's SDK forwards them to Sentry.
+export const SENTRY_TUNNEL_PATH = "/monitoring";
+
 // Options shared by the browser and the server SDKs (instrumentation-client.ts
 // and instrumentation.ts). Sentry is off while NEXT_PUBLIC_SENTRY_DSN is empty.
 // NEXT_PUBLIC_ values are read at build time: set them before `next build`.

@@ -2,12 +2,15 @@ import * as Sentry from "@sentry/nextjs";
 import type { Instrumentation } from "next";
 import { log } from "@/lib/log";
 import { REQUEST_ID_HEADER } from "@/lib/request-id";
-import { sentryOptions } from "@/lib/sentry";
+import { SENTRY_TUNNEL_PATH, sentryOptions } from "@/lib/sentry";
 
-// The server's SDK (Node and the edge runtime): rendering errors and the
-// server's part of each trace.
+// The server's SDK (Node and the edge runtime): rendering errors, the server's
+// part of each trace, and the tunnel the browser sends its events through.
 export function register() {
-  Sentry.init(sentryOptions);
+  Sentry.init({
+    ...sentryOptions,
+    integrations: [Sentry.serveTunnelIntegration({ path: SENTRY_TUNNEL_PATH })],
+  });
 }
 
 // Server errors (rendering, route handlers, proxy): to Sentry, and on the
