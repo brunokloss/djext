@@ -7,7 +7,7 @@
 
 The links use Django's `PasswordResetTokenGenerator`, so no tokens are stored. Each link works once and expires after `PASSWORD_RESET_TIMEOUT` (1 hour). They are built from the host the Next proxy sends, so the frontend's host must be in `ALLOWED_HOSTS`, as for `oauth`.
 
-The endpoints that take an email (sign up, resend the verification, forgot the password) always answer 204, whether the email has an account or not. They are limited per address and per IP (`AUTH_MAIL_THROTTLE_EMAIL`, `AUTH_MAIL_THROTTLE_IP`); past a limit they answer 429 and send nothing. Signing up, verifying, asking for a reset and resetting are logged as `auth.*` actions (`action_performed`), always with the user as the target.
+The endpoints that take an email (sign up, resend the verification, forgot the password) always answer 204, whether the email has an account or not. The time they take still differs a little (a new account is written to the database, an existing one is not), so a patient attacker timing many tries may tell them apart; the limits below make that slow. They are limited per address and per IP (`AUTH_MAIL_THROTTLE_EMAIL`, `AUTH_MAIL_THROTTLE_IP`); past a limit they answer 429 and send nothing. Signing up, verifying, asking for a reset and resetting are logged as `auth.*` actions (`action_performed`), always with the user as the target.
 
 The emails are the `verify_email` and `password_reset` templates in the admin (Post Office › Email templates). The migrations create them, and an edited one is left as it is. In development the worker prints them, links included (see `mail`).
 
