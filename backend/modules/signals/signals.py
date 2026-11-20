@@ -2,9 +2,11 @@ from django.dispatch import Signal
 
 # Something a person did that is not a model change (clear the cache, ...).
 # Sent as `action_performed.send(sender, request=request, name="cache.clear",
-# values={...}, target=obj)`. `target` is what it was done to, when anything
-# (the user whose sessions were ended): the log names it, so it is in that
-# user's history. Who asked for it is request.user. The apps and the modules
+# values={...}, target=obj)`. A service leaves `request` out: the receivers
+# take the request being handled, or `acting_as`'s user (context.py).
+# `target` is what it was done to, when anything (the user whose sessions
+# were ended): the log names it, so it is in that user's history. Who asked
+# for it is the actor (`context.current_actor()`). The apps and the modules
 # don't import each other for this: they all send and receive it here, and
 # modules/audit and modules/log log it, if they are installed.
 action_performed = Signal()

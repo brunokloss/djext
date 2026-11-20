@@ -11,6 +11,8 @@ import logging
 
 from django.contrib.auth import get_user_model
 
+from modules.signals.context import current_actor, current_request, request_user
+
 from .auth import client
 
 CHANNELS = {"auth"}
@@ -21,8 +23,12 @@ RESERVED = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
 def action(request, name, values=None, target=None):
     prefix = name.split(".", 1)[0]
     logger = logging.getLogger(prefix if prefix in CHANNELS else __name__)
-    user = getattr(request, "user", None)
-    by = user.username if user is not None and user.is_authenticated else None
+    # Sent without a request (from a service): the request being handled, or
+    # `acting_as`'s user outside one.
+    if request is None:
+        request = current_request.get()
+    user = request_user(request) or current_actor()
+    by = user.username if user is not None else None
     fields = {k: v for k, v in (values or {}).items() if k not in RESERVED}
     if target is None:
         fields["usr"] = by

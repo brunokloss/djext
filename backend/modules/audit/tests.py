@@ -25,16 +25,16 @@ from post_office.models import Email, EmailTemplate
 from modules.audit import log, signals
 from modules.audit.admin import CHANGED
 from modules.audit.checks import undecided_models
-from modules.audit.middleware import current_request
 from modules.audit.models import AuditLog
+from modules.signals.context import current_request
 from modules.signals.signals import action_performed
 
 User = get_user_model()
 
 
 @contextmanager
-def acting_as(user, request_id="abcd1234"):
-    """What AuditMiddleware does for a request made by `user`."""
+def requested_by(user, request_id="abcd1234"):
+    """What RequestContextMiddleware does for a request made by `user`."""
     request = RequestFactory().get("/")
     request.user = user
     request.request_id = request_id
@@ -58,6 +58,17 @@ def subjects(entry):
 # Skipped when the folder stays but the app is out of INSTALLED_APPS.
 @skipUnless(apps.is_installed("modules.audit"), "audit is off")
 class AuditTest(TestCase):
+    def test_a_change_outside_a_request_is_acting_as_s(self):
+        # A task, a command or an MCP tool: no request, the actor says who.
+        from modules.signals.context import acting_as
+
+        admin = User.objects.create_user(email="root@example.com")
+        with acting_as(admin):
+            ana = User.objects.create_user(email="ana@example.com")
+        entry = logs_of(ana).get()
+        self.assertEqual(entry.actor, admin)
+        self.assertEqual(entry.request_id, "")
+
     def test_create(self):
         user = User.objects.create_user(email="ana@example.com", password="password")
         entry = logs_of(user).get()
@@ -163,7 +174,7 @@ class AuditTest(TestCase):
             content_type="application/json",
         )
         group = Group.objects.create(name="staff")
-        with acting_as(ana):
+        with requested_by(ana):
             ana.groups.add(group)
         self.client.post("/api/auth/logout")
 
@@ -230,7 +241,7 @@ class AuditTest(TestCase):
 
     def test_search_by_the_actor_uuid(self):
         ana = User.objects.create_user(email="ana@example.com", password="password")
-        with acting_as(ana):
+        with requested_by(ana):
             Group.objects.create(name="Staff")
         admin = User.objects.create_superuser(email="admin@example.com")
         self.client.force_login(admin)
@@ -269,11 +280,11 @@ class AuditTest(TestCase):
     def test_deleting_a_subject_keeps_its_logs(self):
         admin = User.objects.create_superuser(email="admin@example.com")
         ana = User.objects.create_user(email="ana@example.com")
-        with acting_as(admin):
+        with requested_by(admin):
             ana.first_name = "Ana"
             ana.save()
         ana_pk = ana.pk
-        with acting_as(admin):
+        with requested_by(admin):
             ana.delete()
 
         entries = AuditLog.objects.filter(subject_1=f"authd.user:{ana_pk}")
@@ -288,7 +299,7 @@ class AuditTest(TestCase):
     def test_deleting_an_actor_keeps_what_they_did_to_others(self):
         admin = User.objects.create_superuser(email="admin@example.com")
         ana = User.objects.create_user(email="ana@example.com")
-        with acting_as(admin):
+        with requested_by(admin):
             ana.first_name = "Ana"
             ana.save()
         admin.delete()
@@ -297,7 +308,7 @@ class AuditTest(TestCase):
 
     def test_deleting_your_own_account(self):
         ana = User.objects.create_user(email="ana@example.com")
-        with acting_as(ana):
+        with requested_by(ana):
             ana.delete()
         entry = AuditLog.objects.get(action="delete")
         self.assertIsNone(entry.actor)
@@ -384,7 +395,7 @@ class AuditAdminTest(TestCase):
         self.ana = User.objects.create_user(email="ana@example.com")
 
     def test_history_page_shows_the_audit_log(self):
-        with acting_as(self.admin):
+        with requested_by(self.admin):
             self.ana.first_name = "Ana"
             self.ana.save()
         url = reverse("admin:authd_user_history", args=[self.ana.pk])
@@ -395,7 +406,7 @@ class AuditAdminTest(TestCase):
         self.assertContains(response, "admin@example.com")
 
     def test_history_page_filters(self):
-        with acting_as(self.admin):
+        with requested_by(self.admin):
             self.ana.first_name = "Ana"
             self.ana.save()
         url = reverse("admin:authd_user_history", args=[self.ana.pk])
@@ -414,7 +425,7 @@ class AuditAdminTest(TestCase):
         self.assertContains(response, " selected>", count=len(AuditLog.Action))
 
     def test_history_page_shows_only_changes(self):
-        with acting_as(self.admin):
+        with requested_by(self.admin):
             self.ana.first_name = "Ana"
             self.ana.save()
         url = reverse("admin:authd_user_history", args=[self.ana.pk])
@@ -686,6 +697,21 @@ class ActionTests(TestCase):
         # Done to nothing: the object and subject are who did it.
         self.assertEqual((log.object_id, log.object_repr), (str(user.pk), str(user)))
         self.assertEqual(log.subjects, [f"authd.user:{user.pk}"])
+
+    def test_without_a_request_the_actor_comes_from_acting_as(self):
+        from modules.signals.context import acting_as
+
+        ana = User.objects.create_user(email="ana@example.com")
+        with acting_as(ana):
+            log = self.send(None)
+        self.assertEqual(log.actor, ana)
+        self.assertEqual(log.subjects, [f"authd.user:{ana.pk}"])
+
+    def test_without_a_request_inside_one_it_takes_the_current_request(self):
+        ana = User.objects.create_user(email="ana@example.com")
+        with requested_by(ana, request_id="feed1234"):
+            log = self.send(None)
+        self.assertEqual((log.actor, log.request_id), (ana, "feed1234"))
 
     def test_the_target_is_the_object_and_the_subject(self):
         admin = User.objects.create_user(email="root@example.com")

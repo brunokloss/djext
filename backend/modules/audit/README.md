@@ -28,4 +28,4 @@ Nothing besides the core. It logs what is sent on `action_performed` (`modules/s
 
 ## Removing it
 
-Delete `backend/modules/audit/` and these lines: `INSTALLED_APPS`, its middleware in `MIDDLEWARE` and `AUDIT_MODELS` in `config/settings.py`. The `Audit` classes on models can stay (Django ignores them). Its tables stay in the database until you drop them.
+Delete `backend/modules/audit/` and these lines: `INSTALLED_APPS` and `AUDIT_MODELS` in `config/settings.py`. The `Audit` classes on models can stay (Django ignores them). Its tables stay in the database until you drop them.

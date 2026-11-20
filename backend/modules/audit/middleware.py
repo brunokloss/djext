@@ -1,21 +1,18 @@
 import ipaddress
-from contextvars import ContextVar
 
 from django.utils.crypto import salted_hmac
 
-# The request being handled, for who made the change and from where. None in
-# the shell, management commands and jobs.
-current_request = ContextVar("audit_request", default=None)
+from modules.signals.context import current_actor, request_user
 
 USER_AGENT_MAX_LEN = 500
 
 
 def request_info(request) -> dict:
-    """The log's fields about who and where from, for AuditLog."""
+    """The log's fields about who and where from, for AuditLog. Without a
+    request (a task, a command, an MCP tool), only who: `acting_as`'s user."""
     if request is None:
-        return {}
-    user = getattr(request, "user", None)
-    actor = user if user and user.is_authenticated else None
+        return {"actor": current_actor()}
+    actor = request_user(request) or current_actor()
     return {
         "actor": actor,
         "ip_address": client_ip(request),
@@ -52,18 +49,3 @@ def client_ip(request) -> str | None:
         return str(ipaddress.ip_address(value or ""))
     except ValueError:
         return None
-
-
-class AuditMiddleware:
-    """Keeps the request where the signals can see it. Goes after
-    AuthenticationMiddleware, so request.user is there."""
-
-    def __init__(self, get_response):
-        self.get_response = get_response
-
-    def __call__(self, request):
-        token = current_request.set(request)
-        try:
-            return self.get_response(request)
-        finally:
-            current_request.reset(token)

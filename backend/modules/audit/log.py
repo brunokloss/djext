@@ -35,7 +35,9 @@ from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.core.validators import validate_email
 from django.db.models import Q
 
-from .middleware import current_request, request_info
+from modules.signals.context import current_actor, current_request, request_user
+
+from .middleware import request_info
 from .models import AuditLog
 
 
@@ -279,9 +281,12 @@ def action(request, name, values=None, target=None):  # request may be None
     `action_performed`). The object is `target`, what it was done to (a user
     whose sessions were ended), and its subjects are the log's, so it shows in
     that user's history and goes with them. With no target, the object and
-    subject is the actor. The actor is always who asked for it."""
-    user = getattr(request, "user", None)
-    user = user if user is not None and user.is_authenticated else None
+    subject is the actor. The actor is always who asked for it. Sent without a
+    request (from a service), it takes the request being handled, or
+    `acting_as`'s user outside one."""
+    if request is None:
+        request = current_request.get()
+    user = request_user(request) or current_actor()
     obj = target if target is not None else user
     # _meta.model, not type(): request.user is a lazy object.
     model = obj._meta.model if obj is not None else get_user_model()

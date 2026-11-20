@@ -277,6 +277,32 @@ class LoggingTest(TestCase):
         line = self.action("auth", "auth.x", values={"name": "no", "count": 1})
         self.assertEqual((line["count"], line.get("name")), (1, None))
 
+    def test_without_a_request_who_asked_is_the_actor(self):
+        # A service called outside HTTP (a task, an MCP tool) inside acting_as.
+        from modules.signals.context import acting_as
+
+        ana = User.objects.create_user("ana@example.com", "x")
+        with acting_as(ana), capture("modules.log") as lines:
+            action_performed.send(None, name="note.email")
+        [line] = lines
+        self.assertEqual((line["usr"], line["by"]), (ana.username, ana.username))
+        self.assertIsNone(line["xip"])
+
+    def test_without_a_request_inside_one_it_takes_the_current_request(self):
+        from modules.signals.context import current_request
+
+        ana = User.objects.create_user("ana@example.com", "x")
+        request = RequestFactory().post("/x", headers={"User-Agent": "Firefox/140"})
+        request.user = ana
+        token = current_request.set(request)
+        try:
+            with capture("modules.log") as lines:
+                action_performed.send(None, name="note.email")
+        finally:
+            current_request.reset(token)
+        [line] = lines
+        self.assertEqual((line["by"], line["uag"]), (ana.username, "Firefox/140"))
+
     def test_app_code_is_on_the_app_channel(self):
         with capture("apps.authd") as lines:
             logging.getLogger("apps.authd.something").info("hello")
