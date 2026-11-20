@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ruff_cache/
+
+# Django
+backend/db.sqlite3
+backend/staticfiles/
+backend/media/
+backend/.coverage*
+backend/htmlcov/
+backend/seed_local.py
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.DS_Store
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/

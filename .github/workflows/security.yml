@@ -1,0 +1,57 @@
+name: Security
+
+# Also weekly: a dependency gets a known vulnerability without any commit here.
+# Pull requests and weekly (new advisories); not on pushes to main, which only
+# get squash merges of code that already passed here.
+on:
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# The repo's default token only reads contents; gitleaks lists a pull
+# request's commits, which needs pull-requests: read.
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Python dependencies (pip-audit)
+        working-directory: backend
+        run: |
+          uv export --frozen --no-hashes --no-emit-project --format requirements-txt > "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit --strict --no-deps --disable-pip -r "$RUNNER_TEMP/requirements.txt"
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+      # audit-ci runs npm audit with the allowlist in frontend/audit-ci.jsonc.
+      - name: npm dependencies (audit-ci)
+        working-directory: frontend
+        run: npx -y audit-ci@7.1.0 --config audit-ci.jsonc
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The whole history: a key removed in a later commit is still leaked.
+          fetch-depth: 0
+      - name: No .env files in git
+        run: |
+          found=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$' || true)
+          if [ -n "$found" ]; then
+            echo "::error::.env files are committed: $found"
+            exit 1
+          fi
+      - name: Keys and tokens (gitleaks)
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

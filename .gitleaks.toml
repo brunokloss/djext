@@ -1,0 +1,8 @@
+# gitleaks (CI's security.yml and .githooks/pre-commit): the default rules,
+# minus a false positive.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Django field arguments after a help_text ending in 'key'"
+regexes = ['''^max_length=\d+$''']

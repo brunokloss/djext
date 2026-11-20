@@ -1,0 +1,37 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+  "python.analysis.extraPaths": ["${workspaceFolder}/backend"],
+  "python.terminal.activateEnvironment": true,
+
+  "editor.formatOnSave": true,
+
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.ruff_cache": true,
+    "**/.import_linter_cache": true,
+  },
+
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
+    }
+  },
+
+  "biome.configurationPath": "frontend/biome.json",
+  "biome.lsp.bin": {
+    "darwin-arm64": "frontend/node_modules/@biomejs/cli-darwin-arm64/biome",
+    "darwin-x64": "frontend/node_modules/@biomejs/cli-darwin-x64/biome",
+    "linux-arm64": "frontend/node_modules/@biomejs/cli-linux-arm64/biome",
+    "linux-x64": "frontend/node_modules/@biomejs/cli-linux-x64/biome"
+  },
+
+  "[javascript][typescript][javascriptreact][typescriptreact][json][jsonc][css]": {
+    "editor.defaultFormatter": "biomejs.biome",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.biome": "explicit",
+      "source.organizeImports.biome": "explicit"
+    }
+  }
+}

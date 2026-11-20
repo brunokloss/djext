@@ -1,0 +1,7 @@
+# Local state and secrets stay out of the image.
+.env
+node_modules/
+.next/
+test-results/
+playwright-report/
+tsconfig.tsbuildinfo

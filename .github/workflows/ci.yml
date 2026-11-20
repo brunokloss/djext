@@ -1,0 +1,132 @@
+name: CI
+
+# Pull requests only: main gets squash merges of code that already passed here.
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Dev-only values so Django can boot; nothing here is a real secret.
+env:
+  SECRET_KEY: ci-insecure-secret-key
+  DEBUG: "True"
+  CSRF_TRUSTED_ORIGINS: http://localhost:3000
+  # A fake master key for modules/crypto (`manage.py crypto_fake_kms_uri`).
+  CRYPTO_KMS_URI: fake-kms://CIP_k-AGEmQKWAowdHlwZS5nb29nbGVhcGlzLmNvbS9nb29nbGUuY3J5cHRvLnRpbmsuQWVzR2NtS2V5EiIaIBE9t1q50DNPOub1mZM4Hz6DyFRgf9yrET1xpMLufjdNGAEQARiD_5PgBiAB
+  # The fake login provider the e2e tests use (`manage.py oauth_mock`).
+  AUTH_MOCK_URL: http://localhost:8001
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: djext
+          POSTGRES_PASSWORD: djext
+          POSTGRES_DB: djext
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://djext:djext@localhost:5432/djext
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check .
+      - name: Format
+        run: uv run ruff format --check .
+      - name: Import rules
+        run: uv run lint-imports
+      - name: Django checks
+        run: uv run python manage.py check && uv run python manage.py makemigrations --check --dry-run
+      # The production settings: DEBUG off, a real-looking key and host. Fails on
+      # any warning, so a new setting that weakens production shows up here.
+      - name: Django deploy checks
+        env:
+          DEBUG: "False"
+          ALLOWED_HOSTS: example.com
+          CSRF_TRUSTED_ORIGINS: https://example.com
+          CRYPTO_KMS_URI: aws-kms://arn:aws:kms:us-east-1:000000000000:key/example
+        run: |
+          SECRET_KEY="$(uv run python -c 'from django.core.management.utils import get_random_secret_key as k; print(k())')" \
+            uv run python manage.py check --deploy --fail-level WARNING
+      - name: Tests
+        run: uv run coverage run manage.py test --parallel && uv run coverage combine -q && uv run coverage report
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: API types are up to date
+        working-directory: .
+        run: |
+          (cd backend && uv sync --locked)
+          make api-types
+          git diff --exit-code -- frontend/lib/api \
+            || { echo "::error::API types are stale. Run 'make api-types' and commit the result."; exit 1; }
+      - name: Lint and format
+        run: npx biome ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm run test
+      - name: Build
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv sync --locked
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: E2E tests
+        run: npm run e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/test-results/
+          retention-days: 7

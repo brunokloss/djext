@@ -1,0 +1,14 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumbs">
+  <li><a href="{% url 'admin:index' %}">Home</a></li>
+  <li><a href="{% url 'admin:cache_cacheentry_changelist' %}">Cache entries</a></li>
+  <li aria-current="page">{{ entry.cache_key }}</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<p>Revealing this value was recorded in the audit log.</p>
+<pre style="white-space: pre-wrap; word-break: break-all;">{{ value }}</pre>
+{% endblock %}

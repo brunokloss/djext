@@ -1,0 +1,23 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+  {% if original and has_change_permission %}
+    <li>
+      {# A form, not a link: it runs a job, so it must be a POST with the CSRF token. #}
+      <form method="post"
+            action="{% url 'admin:cron_cronschedule_schedule_now' original.pk %}"
+            style="display:inline;"
+            onsubmit="return confirm('Enqueue {{ original.name|escapejs }} once right now?');">
+        {% csrf_token %}
+        <button type="submit" class="historylink"
+                style="background:#1d4ed8;color:white;border:0;cursor:pointer;
+                       padding:3px 12px;border-radius:15px;font-size:0.8125rem;
+                       letter-spacing:0.5px;text-transform:uppercase;">
+          ▶ Schedule now
+        </button>
+      </form>
+    </li>
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

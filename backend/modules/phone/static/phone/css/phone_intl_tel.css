@@ -1,0 +1,25 @@
+/* Make the intl-tel-input country dropdown sit correctly inside the Django
+ * admin. The admin would otherwise clip it (overflow), shift it right (label
+ * gutter margin on lists), and let it grow wider than the search box. */
+
+/* Let the dropdown escape the admin's clipping, but only around the phone row
+ * so it never paints over unrelated sections. */
+fieldset.module.aligned {
+    overflow: visible;
+}
+.form-row.field-phone_number {
+    overflow: visible;
+    position: relative;
+}
+
+/* One fixed-width panel; the search box and list fill it. */
+.iti__country-selector {
+    z-index: 1001;
+    width: 280px;
+}
+.iti__country-list {
+    margin: 0;
+    width: 100%;
+    max-height: 240px;
+    box-sizing: border-box;
+}

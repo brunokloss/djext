@@ -1,0 +1,146 @@
+# Optional: a local Postgres, for when you don't want SQLite (the default). Set
+# DATABASE_URL in backend/.env to use it; `make db-up` starts it. See the README
+# ("Postgres"). The same user, password and database as in backend/.env.example.
+# One project name, so a git worktree uses these same containers instead of
+# starting a second Postgres on the same port.
+name: djext
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: djext
+      POSTGRES_PASSWORD: djext
+      POSTGRES_DB: djext
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "djext", "-d", "djext"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # Optional: GlitchTip, a small Sentry-compatible server, to test Sentry
+  # locally (`make sentry`, http://localhost:8002). Not started by `make db-up`.
+  # One container, no Redis; its data lives in a `glitchtip` database in the
+  # Postgres above. See the README ("Sentry").
+  glitchtip:
+    image: glitchtip/glitchtip:7
+    profiles: [sentry]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://djext:djext@db:5432/glitchtip
+      SECRET_KEY: local-glitchtip-only
+      GLITCHTIP_DOMAIN: http://localhost:8002
+      DEFAULT_FROM_EMAIL: glitchtip@localhost
+      EMAIL_URL: consolemail://
+      # Web server, worker and migrations in this one container; Postgres
+      # is the queue and the cache.
+      SERVER_ROLE: all_in_one
+      VALKEY_URL: ""
+      GLITCHTIP_MAX_EVENT_LIFE_DAYS: 7
+    ports:
+      - "8002:8000"
+
+  # Optional: RustFS, a small S3-compatible server, to test S3 storage locally
+  # (`make storage`). Not started by `make db-up`. Use it with
+  # STORAGE_URL=s3://djext:djext-secret@djext?endpoint_url=http://localhost:9000
+  # in backend/.env and STORAGE_BUCKET_URL=http://localhost:9000 in frontend/.env.
+  # Console: http://localhost:9001 (djext / djext-secret). See the README ("Storage").
+  storage:
+    image: rustfs/rustfs:1.0.6
+    profiles: [storage]
+    command: /data
+    environment:
+      RUSTFS_ACCESS_KEY: djext
+      RUSTFS_SECRET_KEY: djext-secret
+      RUSTFS_CONSOLE_ENABLE: "true"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - storage-data:/data
+
+  # Optional: the production images (backend/Dockerfile, frontend/Dockerfile),
+  # to try a production build locally (`make prod`, http://localhost:3000).
+  # Not started by `make db-up`. backend/.env with production switches on top:
+  # DEBUG off and Postgres, in a `djext_prod` database of its own. Uses the same
+  # ports as `make dev`: stop it first. See docs/deployment.md.
+  migrate:
+    build: backend
+    profiles: [prod]
+    command: python manage.py migrate --noinput
+    env_file: backend/.env
+    environment: &backend-env
+      DEBUG: "False"
+      DATABASE_URL: postgres://djext:djext@db:5432/djext_prod
+      # localhost: what the browser asks for (Next forwards its host);
+      # backend: Next's server code calls it directly.
+      ALLOWED_HOSTS: localhost,backend
+      CSRF_TRUSTED_ORIGINS: http://localhost:3000,http://localhost:8000
+      # Services on this machine's localhost (make sentry, make storage) aren't
+      # reachable from a container: off.
+      SENTRY_DSN: ""
+      STORAGE_URL: ""
+      CACHE_URL: ""
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build: backend
+    profiles: [prod]
+    env_file: backend/.env
+    environment: *backend-env
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    build: backend
+    profiles: [prod]
+    command: python manage.py db_worker --queue-name default,scheduled_tasks
+    env_file: backend/.env
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  scheduler:
+    build: backend
+    profiles: [prod]
+    command: python manage.py db_scheduler
+    env_file: backend/.env
+    environment: *backend-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: frontend
+      args:
+        BACKEND_URL: http://backend:8000
+        DJANGO_ADMIN_URL: http://localhost:8000/admin/
+        # From frontend/.env (`make prod` passes it as --env-file). The slug
+        # must match the backend's PROJECT_SLUG, or the cookie names differ
+        # and login breaks.
+        NEXT_PUBLIC_PROJECT_SLUG: ${NEXT_PUBLIC_PROJECT_SLUG:-djext}
+        NEXT_PUBLIC_PROJECT_NAME: ${NEXT_PUBLIC_PROJECT_NAME:-}
+    profiles: [prod]
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
+  storage-data:

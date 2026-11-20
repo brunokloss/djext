@@ -1,0 +1,11 @@
+{
+  "$schema": "https://github.com/IBM/audit-ci/raw/main/docs/schema.json",
+  // Fail on moderate or worse, like `npm audit --audit-level=moderate`.
+  "moderate": true,
+  "report-type": "summary",
+  "allowlist": [
+    // picomatch ReDoS: no patched release yet (<= 4.0.7). It only runs at
+    // build/test time on our own globs. Remove once picomatch > 4.0.7 is out.
+    "GHSA-fc5q-39xc-vjpf"
+  ]
+}

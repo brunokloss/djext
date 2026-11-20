@@ -1,0 +1,4 @@
+from django.db import models  # noqa: F401
+
+# A module can't import apps.core's BaseModel: give each model its own
+# public_id, created_at and updated_at (like modules/bearer/models.py).

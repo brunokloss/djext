@@ -1,0 +1,93 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Home</a> &rsaquo; System &rsaquo; Runtime
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+  .runtime-section { margin-bottom: 2em; }
+  .runtime-section h2 {
+    margin: 0 0 0.5em;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--body-quiet-color);
+  }
+  .runtime-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .runtime-table th, .runtime-table td {
+    padding: 6px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--hairline-color);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+  }
+  .runtime-table th {
+    width: 280px;
+    font-weight: 600;
+  }
+  .runtime-table td.muted {
+    color: var(--body-quiet-color);
+  }
+  .runtime-h1 {
+    font-size: 18px;
+    text-transform: none;
+    color: inherit;
+    margin-top: 1.5em;
+  }
+</style>
+
+<h2 class="runtime-h1">Versions</h2>
+<table class="runtime-table">
+  <tbody>
+    {% for name, value in versions %}
+      <tr>
+        <th>{{ name }}</th>
+        <td>{{ value }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2 class="runtime-h1">Settings</h2>
+{% for title, rows in sections %}
+  <div class="runtime-section">
+    <h2>{{ title }}</h2>
+    <table class="runtime-table">
+      <tbody>
+        {% for name, value in rows %}
+          <tr>
+            <th>{{ name }}</th>
+            <td {% if "(not set)" in value or "(empty)" in value %}class="muted"{% endif %}>{{ value }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endfor %}
+
+<h2 class="runtime-h1">Migrations applied ({{ migrations|length }})</h2>
+<table class="runtime-table">
+  <thead>
+    <tr>
+      <th style="width: auto;">App</th>
+      <th style="width: auto;">Name</th>
+      <th style="width: auto;">Applied</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for m in migrations %}
+      <tr>
+        <th style="width: auto;">{{ m.app }}</th>
+        <td>{{ m.name }}</td>
+        <td>{{ m.applied|date:"Y-m-d H:i:s" }}</td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

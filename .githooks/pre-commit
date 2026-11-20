@@ -1,0 +1,18 @@
+#!/bin/sh
+# Refuses commits that would add secrets. `make install` turns it on
+# (git config core.hooksPath .githooks). Skip once with `git commit --no-verify`.
+
+# .env files hold the real keys; only .env.example belongs in git. .gitignore
+# already hides them, but `git add -f` or a copy under another name gets past it.
+envs=$(git diff --cached --name-only --diff-filter=AM | grep -E '(^|/)\.env($|\.)' | grep -v '\.env\.example$')
+if [ -n "$envs" ]; then
+  echo "pre-commit: refusing to commit .env files:" >&2
+  echo "$envs" | sed 's/^/  /' >&2
+  echo "Unstage them with: git restore --staged <file>" >&2
+  exit 1
+fi
+
+# Keys and tokens in any staged file, when gitleaks is installed (CI always runs it).
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --staged --redact --no-banner || exit 1
+fi

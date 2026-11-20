@@ -1,0 +1,91 @@
+{% extends "admin/object_history.html" %}
+{% load i18n static audit_tags %}
+
+{% comment %}
+The History page of the audited models (set in apps.py): the audit log
+instead of the admin's own log, which only knows what the admin did.
+{% endcomment %}
+
+{% block extrahead %}{{ block.super }}
+{# The Select2 the admin ships for autocomplete_fields. #}
+<link rel="stylesheet" href="{% static 'admin/css/vendor/select2/select2.min.css' %}">
+<link rel="stylesheet" href="{% static 'admin/css/autocomplete.css' %}">
+<script src="{% static 'admin/js/vendor/jquery/jquery.min.js' %}"></script>
+<script src="{% static 'admin/js/vendor/select2/select2.full.min.js' %}"></script>
+<script src="{% static 'admin/js/jquery.init.js' %}"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    django.jQuery(".audit-filter select").select2({ width: "style" });
+  });
+</script>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+<div id="change-history" class="module">
+{% audit_history object as history %}
+<form method="get" class="audit-filter" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 8px 0 12px;">
+    <label>Action
+        <select name="action" multiple style="width: 420px;">
+            {% for value, label in history.action_choices %}
+            <option value="{{ value }}"{% if value in history.actions %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>User
+        <select name="actor" style="width: 220px;">
+            <option value="">All</option>
+            {% for user in history.actors %}
+            <option value="{{ user.pk }}"{% if user.pk|stringformat:"s" == history.actor %} selected{% endif %}>{{ user }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label><input type="checkbox" name="changed" value="1"{% if history.only_changed %} checked{% endif %}> Show only changes</label>
+    <input type="submit" value="Filter">
+    {% if history.filters %}<a href="?">Clear</a>{% endif %}
+</form>
+{% if history.logs %}
+    <table style="width: 100%">
+        <thead>
+        <tr>
+            <th scope="col">{% translate 'Date/time' %}</th>
+            <th scope="col">{% translate 'User' %}</th>
+            <th scope="col">{% translate 'Action' %}</th>
+            <th scope="col" style="width: 60%">Changes</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for log in history.logs %}
+        <tr>
+            <th scope="row"><a href="{% url 'admin:audit_auditlog_change' log.pk %}">{{ log.created_at|date:"DATETIME_FORMAT" }}</a></th>
+            <td>{{ log.actor|default:"—" }}</td>
+            <td>{{ log.get_action_display }}{% if log.name %} <code>{{ log.name }}</code>{% endif %}</td>
+            <td>{% audit_diff log history.only_changed %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {# The admin's own History paginator. #}
+    <nav class="paginator" aria-labelledby="pagination">
+      <h2 id="pagination" class="visually-hidden">{% blocktranslate with name=opts.verbose_name %}Pagination {{ name }} entries{% endblocktranslate %}</h2>
+      {% if history.pagination_required %}
+        <ul>
+        {% for i in history.page_range %}
+          {% if i == history.logs.paginator.ELLIPSIS %}
+            <li>{{ history.logs.paginator.ELLIPSIS }}</li>
+          {% elif i == history.logs.number %}
+            <li><a role="button" href="" aria-current="page">{{ i }}</a></li>
+          {% else %}
+            <li><a role="button" href="?{% if history.filters %}{{ history.filters }}&amp;{% endif %}{{ history.page_var }}={{ i }}">{{ i }}</a></li>
+          {% endif %}
+        {% endfor %}
+        </ul>
+      {% endif %}
+      {{ history.logs.paginator.count }} {% blocktranslate count counter=history.logs.paginator.count %}entry{% plural %}entries{% endblocktranslate %}
+    </nav>
+{% else %}
+    <p>{% if history.filters %}No logs match these filters.{% else %}No changes logged for this object.{% endif %}</p>
+{% endif %}
+</div>
+</div>
+{% endblock %}

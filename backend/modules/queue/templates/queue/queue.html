@@ -1,0 +1,113 @@
+{% extends "admin/base_site.html" %}
+
+{% block breadcrumbs %}
+<ol class="breadcrumbs">
+  <li><a href="{% url 'admin:index' %}">Home</a></li>
+  <li><a href="{% url 'admin:app_list' 'django_tasks_database' %}">Tasks</a></li>
+  <li aria-current="page">Queue</li>
+</ol>
+{% endblock %}
+
+{% block content %}
+<style>
+  .queue-warning {
+    margin: 0 0 1.5em;
+    padding: 10px 14px;
+    border-radius: 4px;
+    background: var(--error-fg, #ba2121);
+    color: #fff;
+    font-weight: 600;
+  }
+  .queue-table td.bad { color: var(--error-fg, #ba2121); font-weight: 700; }
+  .queue-section h2 {
+    margin: 1.5em 0 0.5em;
+    font-size: 18px;
+    text-transform: none;
+    color: inherit;
+  }
+  .queue-table { width: 100%; border-collapse: collapse; }
+  .queue-table th, .queue-table td {
+    padding: 6px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--hairline-color);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+  }
+  .queue-table th { width: 280px; font-weight: 600; }
+  .queue-table td.muted { color: var(--body-quiet-color); }
+  .queue-note { color: var(--body-quiet-color); font-size: 12px; }
+</style>
+
+<div id="queue-warning" class="queue-warning" hidden>
+  The worker seems stopped: something has been waiting for more than {{ stalled_after }} s.
+</div>
+
+<div class="queue-section">
+  <h2>Tasks</h2>
+  <table class="queue-table"><tbody>
+    <tr><th>Due now</th><td data-key="tasks.due"></td></tr>
+    <tr><th>Running</th><td data-key="tasks.running"></td></tr>
+    <tr><th>Oldest waiting</th><td data-key="tasks.oldest_wait" data-unit="s" data-bad="{{ stalled_after }}"></td></tr>
+    <tr><th>Latency, last hour (avg)</th><td data-key="tasks.avg_latency" data-unit="s"></td></tr>
+    <tr><th>Latency, last hour (max)</th><td data-key="tasks.max_latency" data-unit="s"></td></tr>
+  </tbody></table>
+</div>
+
+<div class="queue-section" id="emails" hidden>
+  <h2>Emails</h2>
+  <table class="queue-table"><tbody>
+    <tr><th>Due now</th><td data-key="emails.due"></td></tr>
+    <tr><th>Scheduled for later</th><td data-key="emails.later"></td></tr>
+    <tr><th>Oldest waiting</th><td data-key="emails.oldest_wait" data-unit="s" data-bad="{{ stalled_after }}"></td></tr>
+    <tr><th>Latency, last hour (avg)</th><td data-key="emails.avg_latency" data-unit="s"></td></tr>
+    <tr><th>Latency, last hour (max)</th><td data-key="emails.max_latency" data-unit="s"></td></tr>
+    <tr><th>Failed, last 24 h</th><td data-key="emails.failed_24h" data-bad="0"></td></tr>
+    <tr><th>Failed, last 30 days</th><td data-key="emails.failed_30d" data-bad="0"></td></tr>
+    <tr><th>Requeued (retrying), last 24 h</th><td data-key="emails.requeued_24h" data-bad="0"></td></tr>
+    <tr><th>Requeued (retrying), last 30 days</th><td data-key="emails.requeued_30d"></td></tr>
+  </tbody></table>
+</div>
+
+<form method="post" action="{{ ping_url }}" class="queue-section">{% csrf_token %}
+  <h2>Test</h2>
+  <p class="queue-note">Enqueues a task that does nothing (<code>ping</code>) and opens its result, where you watch the worker pick it up.</p>
+  <input type="submit" class="button" value="Enqueue test task">
+</form>
+
+<p class="queue-note">
+  A task that fails does not count here: a failed send stays on the email.
+  Refreshes every 5 s. <span id="queue-updated"></span>
+</p>
+
+{{ stats|json_script:"queue-initial" }}
+<script>
+  (function () {
+    var url = "{{ stats_url|escapejs }}";
+    function render(data) {
+      document.getElementById("queue-warning").hidden = !data.stalled;
+      document.getElementById("emails").hidden = !data.emails;
+      document.querySelectorAll("[data-key]").forEach(function (cell) {
+        var path = cell.dataset.key.split(".");
+        var value = data[path[0]] && data[path[0]][path[1]];
+        if (value === null || value === undefined) {
+          cell.textContent = "-";
+          cell.className = "muted";
+        } else {
+          cell.textContent = value + (cell.dataset.unit ? " " + cell.dataset.unit : "");
+          cell.className = cell.dataset.bad !== undefined && value > Number(cell.dataset.bad) ? "bad" : "";
+        }
+      });
+      document.getElementById("queue-updated").textContent =
+        "Updated " + new Date().toLocaleTimeString() + ".";
+    }
+    render(JSON.parse(document.getElementById("queue-initial").textContent));
+    setInterval(function () {
+      if (document.hidden) return;
+      fetch(url, { headers: { Accept: "application/json" }, credentials: "same-origin" })
+        .then(function (response) { return response.ok ? response.json() : null; })
+        .then(function (data) { if (data) render(data); })
+        .catch(function () {});
+    }, 5000);
+  })();
+</script>
+{% endblock %}

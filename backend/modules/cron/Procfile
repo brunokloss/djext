@@ -1,0 +1,10 @@
+# Optional: a pool of task workers for production, supervised by honcho.
+#   cd backend && uv run --with honcho honcho -f modules/cron/Procfile -d . start
+#
+# Workers scale out: add or remove lines (or run more copies of this Procfile)
+# to match the load. Each one takes from both queues.
+#
+# The scheduler is not here: run `python manage.py db_scheduler` as its own
+# single service (only one is active anyway, behind an advisory lock).
+worker1: python -u manage.py db_worker --queue-name default,scheduled_tasks
+worker2: python -u manage.py db_worker --queue-name default,scheduled_tasks

@@ -1,0 +1,10 @@
+# Local state and secrets stay out of the image.
+.env
+.venv/
+db.sqlite3
+media/
+staticfiles/
+.coverage
+**/__pycache__/
+.ruff_cache/
+.import_linter_cache/
