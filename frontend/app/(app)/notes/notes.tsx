@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,11 +20,24 @@ import type { components } from "@/lib/api/schema";
 
 type Note = components["schemas"]["NoteOut"];
 
-// Reads with useApi (SWR), writes with api.POST/DELETE, then asks SWR to read
-// the list again. The POSTs carry an Idempotency-Key, so a double click or a
-// retry doesn't create the note (or send the email) twice.
-export function Notes() {
-  const { data: notes, error, mutate } = useApi("/api/notes");
+// The page read the notes on the server and passes them in as `initial`;
+// useApi starts from them instead of fetching again on mount. They also
+// replace what SWR cached on an earlier visit, which is older. Writes go
+// through api.POST/DELETE, then mutate() reads the list again. The POSTs
+// carry an Idempotency-Key, so a double click or a retry doesn't create the
+// note (or send the email) twice.
+export function Notes({ initial }: { initial?: Note[] }) {
+  const {
+    data: notes,
+    error,
+    mutate,
+  } = useApi("/api/notes", undefined, {
+    fallbackData: initial,
+    revalidateOnMount: !initial,
+  });
+  useEffect(() => {
+    if (initial) mutate(initial, { revalidate: false });
+  }, [initial, mutate]);
 
   if (error) return <p role="alert">Could not load the notes.</p>;
   return (

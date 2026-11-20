@@ -1,7 +1,13 @@
+import { serverApi } from "@/lib/api/server";
 import { Notes } from "./notes";
 
+export const instant = false;
+
 // The example feature (backend/apps/note): copy it, then delete it.
-export default function NotesPage() {
+// Reads the notes on the server, so the page arrives with them.
+export default async function NotesPage() {
+  const { data } = await (await serverApi()).GET("/api/notes");
+
   return (
     <>
       <div>
@@ -11,7 +17,7 @@ export default function NotesPage() {
           backend/apps/note/README.md.
         </p>
       </div>
-      <Notes />
+      <Notes initial={data} />
     </>
   );
 }
