@@ -4,12 +4,15 @@
 import logging
 import random
 import time
+from datetime import timedelta
 
 from django.apps import apps
 from django.conf import settings
 from django.core.management import call_command, get_commands
 from django.tasks import task
+from django.utils import timezone
 
+from .models import CronRun
 from .registry import scheduled
 
 logger = logging.getLogger(__name__)
@@ -17,12 +20,18 @@ logger = logging.getLogger(__name__)
 
 @scheduled("0 5 * * *", enabled=True)
 @task(queue_name="scheduled_tasks")
-def prune_task_results(min_age_days: int = 7) -> None:
-    """Daily: delete finished task results older than `min_age_days`.
+def prune_task_results() -> None:
+    """Daily: delete finished task results and cron runs older than
+    TASK_RESULT_RETENTION_DAYS.
 
-    Uses django-tasks-db's own command, so its retention rules stay its own.
+    Results go through django-tasks-db's own command, so its retention rules
+    stay its own. The runs only point at results, which are gone by then.
     """
-    call_command("prune_db_task_results", min_age_days=min_age_days, queue_name="*")
+    days = settings.TASK_RESULT_RETENTION_DAYS
+    call_command("prune_db_task_results", min_age_days=days, queue_name="*")
+    cutoff = timezone.now() - timedelta(days=days)
+    count, _ = CronRun.objects.filter(created_at__lt=cutoff).delete()
+    logger.info("prune_task_results: deleted %s cron runs", count)
 
 
 @scheduled("0 5 * * *", enabled=True)

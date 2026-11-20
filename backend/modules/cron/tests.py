@@ -138,6 +138,34 @@ class ShippedJobsTest(TestCase):
         call.assert_not_called()
 
 
+class RetentionTest(TestCase):
+    def setUp(self):
+        registry.sync_schedules()
+        self.schedule = CronSchedule.objects.first()
+
+    @override_settings(TASK_RESULT_RETENTION_DAYS=7)
+    def test_prune_task_results_drops_old_runs_too(self):
+        import uuid
+
+        from .tasks import prune_task_results
+
+        old = CronRun.objects.create(
+            schedule=self.schedule, task_result_id=uuid.uuid4()
+        )
+        new = CronRun.objects.create(
+            schedule=self.schedule, task_result_id=uuid.uuid4()
+        )
+        CronRun.objects.filter(pk=old.pk).update(
+            created_at=timezone.now() - timedelta(days=8)
+        )
+        with patch("modules.cron.tasks.call_command") as command:
+            prune_task_results.func()
+        command.assert_called_once_with(
+            "prune_db_task_results", min_age_days=7, queue_name="*"
+        )
+        self.assertEqual(list(CronRun.objects.all()), [new])
+
+
 @contextmanager
 def development_jobs():
     """modules/cron/tasks.py with DEBUG on, so test_heartbeat and test_always_fails

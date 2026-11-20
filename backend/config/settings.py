@@ -307,6 +307,9 @@ CRON_TASK_MODULES = ["modules.cron.tasks"]
 CRON_AUTO_ENABLE_NEW_TASKS = config(
     "CRON_AUTO_ENABLE_NEW_TASKS", default=False, cast=bool
 )
+# Days to keep finished task results and the cron's run history (one row per
+# enqueue: a job every minute makes 525,600 a year). Pruned daily.
+TASK_RESULT_RETENTION_DAYS = config("TASK_RESULT_RETENTION_DAYS", default=7, cast=int)
 
 
 # Password validation
