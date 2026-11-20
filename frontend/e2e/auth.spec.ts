@@ -80,7 +80,8 @@ test("API docs require login and come back after it", async ({ page }) => {
   await expect(page).toHaveURL("/login?next=/api/docs");
   await login(page, "password", "/login?next=/api/docs");
   await expect(page).toHaveURL("/api/docs");
-  await expect(page.locator("#swagger-ui")).toBeAttached();
+  // Swagger UI rendered the endpoints: its CSS and JS loaded through Next.
+  await expect(page.locator(".opblock").first()).toBeVisible();
 });
 
 test("API is reachable through the Next proxy", async ({ request }) => {

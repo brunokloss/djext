@@ -49,6 +49,12 @@ const nextConfig: NextConfig = {
     // `:path(.*)` instead of `:path*` keeps the trailing slash Django expects.
     return Promise.resolve([
       { source: "/api/:path(.*)", destination: `${backendUrl}/api/:path` },
+      // The API docs (/api/docs) load Swagger UI's CSS and JS from Django's
+      // static files. Only these: the admin is opened on Django itself.
+      {
+        source: "/static/ninja/:path*",
+        destination: `${backendUrl}/static/ninja/:path*`,
+      },
     ]);
   },
 };
