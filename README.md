@@ -12,6 +12,8 @@ I use it to start a new project fast without starting it half-built. Coding agen
 
 **djext is B2B.** The team creates the accounts in the admin. There is no self sign-up, email verification or password reset by email yet (see [#2](https://github.com/brunokloss/djext/issues/2)).
 
+![The example Notes page, with the sidebar](docs/images/notes.png)
+
 ## Stack
 
 | Layer    | Tech                                                        |
