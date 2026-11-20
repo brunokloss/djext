@@ -34,6 +34,21 @@ def prune_task_results() -> None:
     logger.info("prune_task_results: deleted %s cron runs", count)
 
 
+@scheduled("20 5 * * *", enabled=True)
+@task(queue_name="scheduled_tasks")
+def prune_admin_log() -> None:
+    """Daily: delete the admin's history (django_admin_log) older than
+    ADMIN_LOG_RETENTION_DAYS (0 keeps it)."""
+    days = settings.ADMIN_LOG_RETENTION_DAYS
+    if days <= 0 or not apps.is_installed("django.contrib.admin"):
+        return
+    from django.contrib.admin.models import LogEntry
+
+    cutoff = timezone.now() - timedelta(days=days)
+    count, _ = LogEntry.objects.filter(action_time__lt=cutoff).delete()
+    logger.info("prune_admin_log: deleted %s entries", count)
+
+
 @scheduled("0 5 * * *", enabled=True)
 @task(queue_name="scheduled_tasks")
 def audit_purge() -> None:

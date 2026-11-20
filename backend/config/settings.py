@@ -285,6 +285,9 @@ AUDIT_MODELS = {
 # 0 keeps everything. Personal data (IP, browser, old and new values) should
 # not live forever: pick the shortest time your obligations allow.
 AUDIT_RETENTION_DAYS = config("AUDIT_RETENTION_DAYS", default=1825, cast=int)
+# Days to keep the admin's own history (django_admin_log: who changed what in
+# the admin). 0 keeps it. The audit log has the full record.
+ADMIN_LOG_RETENTION_DAYS = config("ADMIN_LOG_RETENTION_DAYS", default=1825, cast=int)
 
 # Hours an Idempotency-Key keeps its response (modules/idempotency). A retry
 # after that runs the endpoint again; `idempotency_purge` (a daily job of

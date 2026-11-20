@@ -165,6 +165,35 @@ class RetentionTest(TestCase):
         )
         self.assertEqual(list(CronRun.objects.all()), [new])
 
+    def admin_entries(self, days_ago):
+        from django.contrib.admin.models import ADDITION, LogEntry
+
+        user = get_user_model().objects.create_user(email=f"u{days_ago}@example.com")
+        entry = LogEntry.objects.create(
+            user=user, object_repr="x", action_flag=ADDITION
+        )
+        LogEntry.objects.filter(pk=entry.pk).update(
+            action_time=timezone.now() - timedelta(days=days_ago)
+        )
+        return LogEntry.objects
+
+    @override_settings(ADMIN_LOG_RETENTION_DAYS=30)
+    def test_prune_admin_log(self):
+        from .tasks import prune_admin_log
+
+        self.admin_entries(31)
+        entries = self.admin_entries(1)
+        prune_admin_log.func()
+        self.assertEqual(entries.count(), 1)
+
+    @override_settings(ADMIN_LOG_RETENTION_DAYS=0)
+    def test_prune_admin_log_off(self):
+        from .tasks import prune_admin_log
+
+        entries = self.admin_entries(5000)
+        prune_admin_log.func()
+        self.assertEqual(entries.count(), 1)
+
 
 @contextmanager
 def development_jobs():
