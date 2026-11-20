@@ -1,3 +1,4 @@
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.http import HttpRequest, HttpResponse
@@ -125,6 +126,10 @@ class LoginOptionsOut(Schema):
     password: bool
     # Other ways to log in, in the order the page shows them.
     providers: list[LoginOptionOut]
+    # Self-service accounts (modules/signup): the links to /signup and
+    # /forgot-password.
+    signup: bool
+    password_reset: bool
 
 
 # Public and the same for everyone, and settings only change when the app
@@ -136,9 +141,13 @@ def list_login_options(request: HttpRequest):
     """Which ways to log in are on, so the login page only shows those: the
     password, and what the modules return (modules/signals/signals.py)."""
     sent = login_options_requested.send(list_login_options)
+    # Both need the password, and are off when modules/signup is removed.
+    signup = apps.is_installed("modules.signup") and settings.AUTH_PASSWORD
     return {
         "password": settings.AUTH_PASSWORD,
         "providers": [option for _, options in sent for option in options],
+        "signup": signup and settings.AUTH_SIGNUP,
+        "password_reset": signup and settings.AUTH_PASSWORD_RESET,
     }
 
 
