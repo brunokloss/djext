@@ -26,12 +26,13 @@ Each job gets a row in the admin (Cron). `@scheduled` goes above `@task`; on any
 | `cleanup_mail` | sent emails, their logs and attachments | `EMAIL_RETENTION_DAYS` (30) |
 | `clear_sessions` | expired sessions | `SESSION_COOKIE_AGE` (2 weeks) |
 | `prune_admin_log` | the admin's own history (`django_admin_log`) | `ADMIN_LOG_RETENTION_DAYS` (1825) |
+| `cache_purge_expired` | the database cache's expired entries, 5,000 per delete (nothing with Redis or without `modules/cache`) | until they expire |
 
-0 keeps everything where a setting allows it. The cache needs no job: it holds at most `CACHE_MAX_ENTRIES` and drops expired entries when it is full.
+0 keeps everything where a setting allows it. Without `cache_purge_expired`, expired cache entries would stay until the table passed `CACHE_MAX_ENTRIES`, when one write would delete them all inside a request.
 
 ## Depends on
 
-The packages `croniter` and `django-tasks-db` (`django_tasks_db` in `INSTALLED_APPS`, plus `TASKS`), and a worker (`manage.py db_worker`) to run what it enqueues. More than one scheduler needs Postgres. Its jobs call `audit`, `idempotency` and `mail` by command name and do nothing when those are removed.
+The packages `croniter` and `django-tasks-db` (`django_tasks_db` in `INSTALLED_APPS`, plus `TASKS`), and a worker (`manage.py db_worker`) to run what it enqueues. More than one scheduler needs Postgres. Its jobs call `audit`, `cache`, `idempotency` and `mail` by command name and do nothing when those are removed.
 
 ## Removing it
 

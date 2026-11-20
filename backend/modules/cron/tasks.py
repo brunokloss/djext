@@ -77,6 +77,18 @@ def idempotency_purge() -> None:
     call_command("idempotency_purge")
 
 
+@scheduled("25 5 * * *", enabled=True)
+@task(queue_name="scheduled_tasks")
+def cache_purge_expired() -> None:
+    """Daily: delete the database cache's expired entries, a batch at a time,
+    so no request ever pays for deleting a big backlog.
+
+    Called by name, like audit_purge: without modules/cache there is nothing to do.
+    """
+    if "cache_purge_expired" in get_commands():
+        call_command("cache_purge_expired")
+
+
 @scheduled("* * * * *", enabled=True)
 @task(queue_name="scheduled_tasks")
 def enqueue_due_emails() -> None:
