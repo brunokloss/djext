@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api/client";
+import { useClearApiCache } from "@/lib/api/hooks";
 
 // Posts from the browser through the Next proxy, so Django sets the session
 // cookie on the Next origin.
 export function LoginForm({ next }: { next?: string }) {
   const router = useRouter();
+  const clearApiCache = useClearApiCache();
   // Controlled, because React resets the form after the action: on a failed
   // login the email stays and only the password is cleared.
   const [email, setEmail] = useState("");
@@ -23,6 +25,7 @@ export function LoginForm({ next }: { next?: string }) {
         },
       });
       if (error) return error.detail;
+      await clearApiCache();
       // `next` may be a Django page (like /api/docs) the Next router doesn't
       // know, so load it in full.
       if (next) window.location.assign(next);

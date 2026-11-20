@@ -5,14 +5,17 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/client";
+import { useClearApiCache } from "@/lib/api/hooks";
 
 export function LogoutButton() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const clearApiCache = useClearApiCache();
 
   function logout() {
     startTransition(async () => {
       await api.POST("/api/auth/logout");
+      await clearApiCache();
       router.replace("/login");
     });
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import { useSWRConfig } from "swr";
 import { createQueryHook } from "swr-openapi";
 import { api } from "./client";
 import type { paths } from "./schema";
@@ -18,3 +19,11 @@ export const useApi = createQueryHook<paths, MediaType, "api", TypeError>(
   api,
   "api",
 );
+
+// Forgets every cached answer. The cache lives as long as the tab, so without
+// this the next user to log in here would first see the last one's data.
+// Login and logout call it.
+export function useClearApiCache() {
+  const { mutate } = useSWRConfig();
+  return () => mutate(() => true, undefined, { revalidate: false });
+}
