@@ -3,7 +3,7 @@
 `modules/signup` is for projects that need self-service accounts. djext is B2B, so it starts off. Two settings turn it on, and both need `AUTH_PASSWORD`:
 
 - **`AUTH_SIGNUP=True`:** anyone can sign up with email and password at `/signup`. The account stays inactive until they open the link sent by email (`/verify`), then they log in as usual. Only accounts created this way get activated by a link (the `Signup` row). A user the team blocked or anonymized stays inactive.
-- **`AUTH_PASSWORD_RESET=True`:** "Forgot your password?" on `/login` sends a link to choose a new one (`/reset-password`). Only active users who have a password get one. A new password ends all of that user's sessions.
+- **`AUTH_PASSWORD_RESET=True`:** "Forgot your password?" on `/login` sends a link to choose a new one (`/reset-password`). Only active users who have a password get one. A new password ends all of that user's sessions and lifts the login lock on their email (`authd` listens for `auth.password_reset`).
 
 The links use Django's `PasswordResetTokenGenerator`, so no tokens are stored. Each link works once and expires after `PASSWORD_RESET_TIMEOUT` (1 hour). They are built from the host the Next proxy sends, so the frontend's host must be in `ALLOWED_HOSTS`, as for `oauth`.
 

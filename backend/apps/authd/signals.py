@@ -5,7 +5,10 @@ from django.db.models.signals import m2m_changed, post_delete, post_save
 from django.dispatch import receiver
 
 from modules.cache import decorators as cache
+from modules.signals.signals import action_performed
+from modules.throttle.throttles import hashed
 
+from .api.auth import email_login_limit
 from .api.users import ME_CACHE
 
 User = get_user_model()
@@ -53,3 +56,11 @@ def on_group_permissions_changed(sender, instance, action, pk_set, **kwargs):
     groups = [instance.pk] if isinstance(instance, Group) else pk_set
     members = User.objects.filter(groups__in=groups).values_list("pk", flat=True)
     cache.invalidate(ME_CACHE, *members)
+
+
+# A new password from a reset link (modules/signup) lifts the email's login
+# lock: whoever set it owns the inbox.
+@receiver(action_performed, dispatch_uid="authd.on_password_reset")
+def on_password_reset(sender, name, target=None, **kwargs):
+    if name == "auth.password_reset" and (limit := email_login_limit()):
+        limit.clear(hashed(target.email))

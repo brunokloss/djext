@@ -199,6 +199,19 @@ class PasswordResetTest(SignupTestCase):
         self.reset(**found)
         self.assertEqual(other.get("/api/users/me").status_code, 401)
 
+    @override_settings(AUTH_LOGIN_THROTTLE_EMAIL="2/15min", AUTH_LOGIN_THROTTLE_IP="")
+    def test_lifts_the_login_lock(self):
+        login = {"email": "ana@example.com", "password": "wrong"}
+        for _ in range(2):
+            self.post("login", **login)
+        self.assertEqual(self.post("login", **login).status_code, 429)
+        self.forgot()
+        found = link(Email.objects.get())
+        del found["path"]
+        self.reset(**found)
+        response = self.post("login", email="ana@example.com", password=PASSWORD)
+        self.assertEqual(response.status_code, 200)
+
     def test_a_weak_password_is_refused(self):
         self.forgot()
         found = link(Email.objects.get())
