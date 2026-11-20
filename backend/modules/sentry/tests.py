@@ -73,6 +73,7 @@ class InitTest(SimpleTestCase):
         init_sentry("https://key@sentry.example.com/1", "production", 0.5)
         options = init.call_args.kwargs
         self.assertIs(options["send_default_pii"], False)
+        self.assertEqual(options["max_request_body_size"], "never")
         self.assertIs(options["before_send"], _add_request_id)
         self.assertIs(options["before_send_transaction"], _add_request_id)
         self.assertEqual(options["environment"], "production")
