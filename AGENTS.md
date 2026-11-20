@@ -6,6 +6,8 @@ Notes for coding agents working on djext. The details are in [README.md](README.
 
 To start a new project fast without starting it half-built. A fresh project gets what usually comes late or never: login, an admin back office, an audit log, structured logs, rate limits, background tasks, scheduled jobs, email, tests and CI, all wired together and documented. It is meant for small projects that should stay simple: one Django, one Next.js, one Postgres.
 
+**djext is B2B.** The team creates the accounts in the admin and hands them out. There are no B2C tools yet: no self sign-up, email verification, password reset by email or invites. Don't assume they exist, and don't add them as a side effect of another change.
+
 Keep it that way. A change should make the starting point better for most projects, not add options for one of them.
 
 ## Architecture decisions
@@ -14,7 +16,7 @@ Keep it that way. A change should make the starting point better for most projec
 - **Same origin through a proxy.** Next rewrites `/api/*` to Django, so the browser talks to one origin: stock Django session cookies and CSRF, with no CORS and no JWT. Don't add token auth for the browser; `modules/bearer` is for programs.
 - **A typed contract.** Django Ninja with typed input and output on every endpoint (a test enforces it). The frontend types are generated from the OpenAPI schema, so a backend change that breaks the frontend fails at compile time.
 - **All you need is Postgres.** The task queue (`django-tasks-db`), scheduled jobs (`cron`), cache (an UNLOGGED table), sessions and the email queue (`post_office`) all live in the database. No Redis, Celery or broker by default. `CACHE_URL=redis://...` is the way out when a project outgrows it. SQLite is the development default.
-- **Stock Django first.** Use what Django ships (auth, sessions, admin, the tasks framework) and the libraries already in use before writing or adding something. The admin is the back office: accounts are created there, there is no self sign-up.
+- **Stock Django first.** Use what Django ships (auth, sessions, admin, the tasks framework) and the libraries already in use before writing or adding something. The admin is the back office.
 - **Removable modules.** `backend/apps/` is the base every project keeps; `backend/modules/` holds features a project may drop. Removing a module is deleting its folder and the lines its README lists. That is why modules don't import apps, `config` or each other, and talk through `modules/signals/` (import-linter checks it).
 - **Public ids.** Rows keep an integer `id` for joins; the API and URLs only show `public_id` (UUIDv7), so ids leak neither counts nor order.
 - **Built-in traceability.** One structured log line per event, with a `request_id` shared by Next and Django and by background tasks. Every auth event is logged. The audit log is written in the same transaction as the change, with who asked and whose data it is.
