@@ -176,7 +176,7 @@ class CachesFromUrlTests(SimpleTestCase):
 
 class PurgeExpiredTest(TestCase):
     def test_deletes_only_the_expired_in_batches(self):
-        from .management.commands.cache_purge_expired import purge_expired
+        from .management.commands.cache_purge import purge_expired
 
         for i in range(5):
             cache.set(f"old{i}", i, timeout=60)

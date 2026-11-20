@@ -20,15 +20,15 @@ Each job gets a row in the admin (Cron). `@scheduled` goes above `@task`; on any
 
 | Job | Deletes | Kept for |
 | --- | --- | --- |
-| `prune_task_results` | finished task results and the cron's run history | `TASK_RESULT_RETENTION_DAYS` (7) |
+| `task_result_purge` | finished task results and the cron's run history | `TASK_RESULT_RETENTION_DAYS` (7) |
 | `audit_purge` | audit logs (nothing without `modules/audit`) | `AUDIT_RETENTION_DAYS` (1825) |
 | `idempotency_purge` | idempotency keys | `IDEMPOTENCY_TTL_HOURS` (24) |
-| `cleanup_mail` | sent emails, their logs and attachments | `EMAIL_RETENTION_DAYS` (30) |
-| `clear_sessions` | expired sessions | `SESSION_COOKIE_AGE` (2 weeks) |
-| `prune_admin_log` | the admin's own history (`django_admin_log`) | `ADMIN_LOG_RETENTION_DAYS` (1825) |
-| `cache_purge_expired` | the database cache's expired entries, 5,000 per delete (nothing with Redis or without `modules/cache`) | until they expire |
+| `mail_purge` | sent emails, their logs and attachments | `EMAIL_RETENTION_DAYS` (30) |
+| `session_purge` | expired sessions | `SESSION_COOKIE_AGE` (2 weeks) |
+| `admin_log_purge` | the admin's own history (`django_admin_log`) | `ADMIN_LOG_RETENTION_DAYS` (1825) |
+| `cache_purge` | the database cache's expired entries, 5,000 per delete (nothing with Redis or without `modules/cache`) | until they expire |
 
-0 keeps everything where a setting allows it. Without `cache_purge_expired`, expired cache entries would stay until the table passed `CACHE_MAX_ENTRIES`, when one write would delete them all inside a request.
+0 keeps everything where a setting allows it. Without `cache_purge`, expired cache entries would stay until the table passed `CACHE_MAX_ENTRIES`, when one write would delete them all inside a request.
 
 ## Depends on
 
