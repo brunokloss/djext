@@ -56,25 +56,28 @@ class MailLimit(SimpleRateThrottle):
 
 def mail_wait(request: HttpRequest, email: str) -> int | None:
     """Seconds to wait when a limit is reached, or None. Each limit that lets
-    the try in counts it."""
+    the try in counts it. The IP's first: a try it refuses must not use up
+    the email's (someone over their own limit would lock the owner out)."""
     # Keyed with SECRET_KEY: the cache monitor lists the keys, and an email
     # must not be readable there.
     email = services.normalize_email(email)
     hashed = salted_hmac("modules.signup", email, algorithm="sha256").hexdigest()
     limits = [
-        ("signup_email", settings.AUTH_MAIL_THROTTLE_EMAIL, hashed),
         (
             "signup_ip",
             settings.AUTH_MAIL_THROTTLE_IP,
             BaseThrottle().get_ident(request),
         ),
+        ("signup_email", settings.AUTH_MAIL_THROTTLE_EMAIL, hashed),
     ]
     for scope, rate, ident in limits:
         if not rate:
             continue
         limit = MailLimit(scope, rate, ident)
         if not limit.allow_request(request):
-            return max(1, int(limit.duration - (limit.now - limit.history[-1])))
+            # No history with a rate of 0: the whole period.
+            oldest = limit.history[-1] if limit.history else limit.now
+            return max(1, int(limit.duration - (limit.now - oldest)))
     return None
 
 

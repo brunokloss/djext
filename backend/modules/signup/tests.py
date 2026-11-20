@@ -293,6 +293,20 @@ class SettingsTest(SignupTestCase):
         self.assertIn("Retry-After", response)
         self.assertEqual(self.post("password/forgot", email="c@b.co").status_code, 204)
 
+    @override_settings(AUTH_MAIL_THROTTLE_EMAIL="1/h", AUTH_MAIL_THROTTLE_IP="1/h")
+    def test_a_try_the_ip_refuses_does_not_count_for_the_email(self):
+        self.post("password/forgot", email="a@b.co")
+        self.assertEqual(self.post("password/forgot", email="c@b.co").status_code, 429)
+        with self.settings(AUTH_MAIL_THROTTLE_IP=""):
+            response = self.post("password/forgot", email="c@b.co")
+        self.assertEqual(response.status_code, 204)
+
+    @override_settings(AUTH_MAIL_THROTTLE_EMAIL="0/h")
+    def test_a_rate_of_zero_refuses_every_try(self):
+        response = self.post("password/forgot", email="a@b.co")
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response["Retry-After"], "3600")
+
     @override_settings(AUTH_MAIL_THROTTLE_EMAIL="", AUTH_MAIL_THROTTLE_IP="2/h")
     def test_limits_the_emails_per_ip(self):
         for email in ("a@b.co", "c@b.co"):
