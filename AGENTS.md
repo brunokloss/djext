@@ -42,7 +42,7 @@ Run from the repo root:
 - Everything in the repo is in plain English: code, comments, docs and commit messages.
 - New module: start from `backend/config/module_template/` (see [Architecture](docs/architecture.md)). Short, singular names (`audit`, `bearer`). Its tests go in `tests.py` and its docs in `README.md`, including "Depends on" and "Removing it".
 - Models inherit `apps.core.models.BaseModel`.
-- One domain function per operation, called by the API, the admin action and anything else that needs it.
+- Views are boring: they read the request, call the app's `services.py` and shape the answer. The rules live in `services.py`, one function per operation, called by the API, the admin, tasks and anything else, so they are tested once without HTTP. `backend/apps/note` is the example to copy: model, services, thin API, idempotent POSTs, an action, a cron job, tests for services and API, and the page.
 - Don't add database queries to failure paths (a failed login, a rejected key) just to enrich a log line.
 - A new env var follows the prefix of its siblings and goes in the matching `.env.example`.
 - Change the docs (module README, `docs/`) in the same change as the code. Keep them short; point to `/api/docs` instead of listing endpoints.
