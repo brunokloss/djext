@@ -6,7 +6,7 @@ from ninja import Router, Schema
 from ninja.throttling import BaseThrottle, SimpleRateThrottle
 from ninja.utils import check_csrf
 
-from . import account
+from . import services
 
 # Paths in full, like every app (see apps/authd/api/__init__.py).
 router = Router()
@@ -59,7 +59,7 @@ def mail_wait(request: HttpRequest, email: str) -> int | None:
     the try in counts it."""
     # Keyed with SECRET_KEY: the cache monitor lists the keys, and an email
     # must not be readable there.
-    email = account.normalize_email(email)
+    email = services.normalize_email(email)
     hashed = salted_hmac("modules.signup", email, algorithm="sha256").hexdigest()
     limits = [
         ("signup_email", settings.AUTH_MAIL_THROTTLE_EMAIL, hashed),
@@ -76,6 +76,12 @@ def mail_wait(request: HttpRequest, email: str) -> int | None:
         if not limit.allow_request(request):
             return max(1, int(limit.duration - (limit.now - limit.history[-1])))
     return None
+
+
+def site(request: HttpRequest) -> str:
+    """The frontend's address, for the links in the emails: the host the Next
+    proxy sends (X-Forwarded-Host), so it must be in ALLOWED_HOSTS."""
+    return request.build_absolute_uri("/").rstrip("/")
 
 
 def refused(request: HttpRequest, enabled: bool, what: str):
@@ -111,12 +117,12 @@ def signup(request: HttpRequest, response: HttpResponse, data: SignupIn):
     # Checked before the limit: a refused password sends no email.
     fields = (data.email, data.password, data.first_name, data.last_name)
     try:
-        account.check(*fields)
+        services.check(*fields)
     except ValidationError as error:
         return invalid(error)
     if wait := mail_wait(request, data.email):
         return too_many(response, wait)
-    account.sign_up(request, *fields)
+    services.sign_up(site(request), *fields)
     return 204, None
 
 
@@ -128,7 +134,7 @@ def resend_verification(request: HttpRequest, response: HttpResponse, data: Emai
         return answer
     if wait := mail_wait(request, data.email):
         return too_many(response, wait)
-    account.resend_verification(request, data.email)
+    services.resend_verification(site(request), data.email)
     return 204, None
 
 
@@ -141,7 +147,7 @@ def verify(request: HttpRequest, data: VerifyIn):
     already, or the password is wrong. Log in afterwards."""
     if answer := refused(request, settings.AUTH_SIGNUP, "Sign-up"):
         return answer
-    if account.verify(request, data.uid, data.token, data.password) is None:
+    if services.verify(data.uid, data.token, data.password) is None:
         return 400, {
             "detail": "This link is invalid or has expired, or the password is wrong."
         }
@@ -156,7 +162,7 @@ def forgot_password(request: HttpRequest, response: HttpResponse, data: EmailIn)
         return answer
     if wait := mail_wait(request, data.email):
         return too_many(response, wait)
-    account.request_reset(request, data.email)
+    services.request_reset(site(request), data.email)
     return 204, None
 
 
@@ -172,7 +178,7 @@ def reset_password(request: HttpRequest, data: ResetIn):
     if answer := refused(request, settings.AUTH_PASSWORD_RESET, "Password reset"):
         return answer
     try:
-        user = account.reset_password(request, data.uid, data.token, data.password)
+        user = services.reset_password(data.uid, data.token, data.password)
     except ValidationError as error:
         return invalid(error)
     if user is None:

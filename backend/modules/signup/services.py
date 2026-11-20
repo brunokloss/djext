@@ -1,10 +1,14 @@
-"""Sign-up, email verification and password reset: one function per
-operation, called by the API (api.py).
+"""Sign-up, email verification and password reset: the services the API
+(api.py) calls. Nobody is logged in for these: the actor is anonymous, and
+the actions name the user as their target.
 
-The requests that take an email (sign up, resend the verification, forgot the
-password) do the same work and give the same answer whether the email has an
-account or not, so they don't tell who has one: the password is hashed
-anyway and the email is only sent when there is someone to send it to.
+The ones that take an email (sign up, resend the verification, forgot the
+password) do the same work whether the email has an account or not, so the
+answer doesn't tell who has one: the password is hashed anyway and the email
+is only sent when there is someone to send it to.
+
+Those that send a link take `site`, the frontend's address the link points to
+("https://app.example.com"): the API builds it from the request.
 """
 
 from django.contrib.auth import get_user_model
@@ -31,11 +35,9 @@ def normalize_email(email: str) -> str:
     return User.objects.normalize_email(email)
 
 
-def _send(request, user, template: str, path: str, token: str) -> None:
-    """Queues the email with a link to `path` on the frontend. Built from the
-    request's host, the one the Next proxy sends (X-Forwarded-Host), so it
-    must be in ALLOWED_HOSTS."""
-    url = request.build_absolute_uri(f"{path}?uid={user.username}&token={token}")
+def _send(site: str, user, template: str, path: str, token: str) -> None:
+    """Queues the email with a link to `path` on the frontend."""
+    url = f"{site.rstrip('/')}{path}?uid={user.username}&token={token}"
     mail.send(
         user.email,
         template=template,
@@ -56,7 +58,7 @@ def check(email: str, password: str, first_name="", last_name="") -> None:
     validate_password(password, user)
 
 
-def sign_up(request, email: str, password: str, first_name="", last_name=""):
+def sign_up(site: str, email: str, password: str, first_name="", last_name=""):
     """Creates an inactive user and sends them the verification link; check()
     first. An email that has an account already gets nothing, unless it is
     still waiting for its verification: then the latest sign-up wins (its
@@ -70,7 +72,7 @@ def sign_up(request, email: str, password: str, first_name="", last_name=""):
             existing.set_password(password)
             existing.first_name, existing.last_name = first_name, last_name
             existing.save(update_fields=["password", "first_name", "last_name"])
-            _send_verification(request, existing)
+            _send_verification(site, existing)
         else:
             # As long as creating one takes.
             make_password(password)
@@ -85,13 +87,11 @@ def sign_up(request, email: str, password: str, first_name="", last_name=""):
                 is_active=False,
             )
             Signup.objects.create(user=user)
-            action_performed.send(
-                sign_up, request=request, name="auth.signup", target=user
-            )
+            action_performed.send(sign_up, name="auth.signup", target=user)
     except IntegrityError:
         # Someone else signed up with this email at the same time.
         return
-    _send_verification(request, user)
+    _send_verification(site, user)
 
 
 def _waiting(user) -> bool:
@@ -102,14 +102,14 @@ def _waiting(user) -> bool:
     )
 
 
-def _send_verification(request, user) -> None:
-    _send(request, user, VERIFY_TEMPLATE, "/verify", verify_tokens.make_token(user))
+def _send_verification(site: str, user) -> None:
+    _send(site, user, VERIFY_TEMPLATE, "/verify", verify_tokens.make_token(user))
 
 
-def resend_verification(request, email: str) -> None:
+def resend_verification(site: str, email: str) -> None:
     user = User.objects.filter(email__iexact=normalize_email(email)).first()
     if user is not None and _waiting(user):
-        _send_verification(request, user)
+        _send_verification(site, user)
 
 
 def _user(uid: str):
@@ -119,7 +119,7 @@ def _user(uid: str):
         return None
 
 
-def verify(request, uid: str, token: str, password: str):
+def verify(uid: str, token: str, password: str):
     """Activates the user the link was sent to, given the password they signed
     up with: a link alone would activate whatever password was typed, maybe
     by someone else. Returns them, or None when the link is wrong, expired or
@@ -142,13 +142,11 @@ def verify(request, uid: str, token: str, password: str):
         signup.save(update_fields=["verified_at", "updated_at"])
         user.is_active = True
         user.save(update_fields=["is_active"])
-        action_performed.send(
-            verify, request=request, name="auth.verify_email", target=user
-        )
+        action_performed.send(verify, name="auth.verify_email", target=user)
     return user
 
 
-def request_reset(request, email: str) -> None:
+def request_reset(site: str, email: str) -> None:
     """Sends the reset link to an active user with a password, like Django's
     PasswordResetForm: never to one who is blocked or waiting for their
     verification (resetting doesn't activate anyone)."""
@@ -157,15 +155,13 @@ def request_reset(request, email: str) -> None:
     ).first()
     if user is None or not user.has_usable_password():
         return
-    _send(
-        request, user, RESET_TEMPLATE, "/reset-password", reset_tokens.make_token(user)
-    )
+    _send(site, user, RESET_TEMPLATE, "/reset-password", reset_tokens.make_token(user))
     action_performed.send(
-        request_reset, request=request, name="auth.password_reset_request", target=user
+        request_reset, name="auth.password_reset_request", target=user
     )
 
 
-def reset_password(request, uid: str, token: str, password: str):
+def reset_password(uid: str, token: str, password: str):
     """Sets the new password. Returns the user, or None when the link is wrong,
     expired or used already. Raises ValidationError for a password that fails
     AUTH_PASSWORD_VALIDATORS. Their sessions end: each one holds a hash of the
@@ -177,7 +173,5 @@ def reset_password(request, uid: str, token: str, password: str):
     with transaction.atomic():
         user.set_password(password)
         user.save(update_fields=["password"])
-        action_performed.send(
-            reset_password, request=request, name="auth.password_reset", target=user
-        )
+        action_performed.send(reset_password, name="auth.password_reset", target=user)
     return user
