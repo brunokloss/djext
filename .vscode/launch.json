@@ -1,0 +1,66 @@
+{
+  // Breakpoints for both sides. Stop `make dev` first: these start the same
+  // servers on the same ports. `make dev`'s worker and scheduler are not
+  // started here; "Django: task worker" runs the worker under the debugger.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Django: runserver",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/manage.py",
+      "args": ["runserver", "8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "django": true,
+      "justMyCode": true
+    },
+    {
+      "name": "Django: tests",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/manage.py",
+      "args": ["test", "${input:testLabel}"],
+      "cwd": "${workspaceFolder}/backend",
+      "django": true,
+      "justMyCode": false
+    },
+    {
+      "name": "Django: task worker",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/manage.py",
+      "args": ["db_worker"],
+      "cwd": "${workspaceFolder}/backend",
+      "django": true
+    },
+    {
+      "name": "Next.js: server",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm run dev",
+      "cwd": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Next.js: browser",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full stack",
+      "configurations": ["Django: runserver", "Next.js: server"],
+      "stopAll": true
+    }
+  ],
+  "inputs": [
+    {
+      "id": "testLabel",
+      "type": "promptString",
+      "description": "What to test (empty runs everything)",
+      "default": ""
+    }
+  ]
+}

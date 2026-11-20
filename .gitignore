@@ -22,4 +22,5 @@ backend/seed_local.py
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+!.vscode/launch.json
 .idea/

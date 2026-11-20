@@ -1,3 +1,8 @@
 {
-  "recommendations": ["charliermarsh.ruff", "biomejs.biome", "ms-python.python"]
+  "recommendations": [
+    "charliermarsh.ruff",
+    "biomejs.biome",
+    "ms-python.python",
+    "ms-python.debugpy"
+  ]
 }
