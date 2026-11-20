@@ -68,8 +68,9 @@ CSRF_COOKIE_SECURE = not DEBUG
 # security-headers.ts), so Django doesn't. To have Django redirect instead,
 # uncomment this (and drop security.W008 from SILENCED_SYSTEM_CHECKS).
 # SECURE_SSL_REDIRECT = True
-# How long a login lasts (Django's default: 2 weeks).
-# SESSION_COOKIE_AGE = 60 * 60 * 24 * 14
+# How long a login lasts, in seconds (Django's default: 2 weeks). Expired
+# sessions are deleted by `clear_sessions`, a daily job of modules/cron.
+SESSION_COOKIE_AGE = config("SESSION_COOKIE_AGE", default=60 * 60 * 24 * 14, cast=int)
 # `check --deploy` (run in CI) asks for HSTS, which Next sends, and the HTTPS
 # redirect, which the load balancer does.
 SILENCED_SYSTEM_CHECKS = ["security.W004", "security.W008"]
