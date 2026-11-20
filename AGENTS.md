@@ -1,6 +1,26 @@
 # AGENTS.md
 
-Notes for coding agents working on djext. Read [README.md](README.md) and [docs/](docs/) first; this file only lists the rules that are easy to miss.
+Notes for coding agents working on djext. The details are in [README.md](README.md) and [docs/](docs/); this file says why things are the way they are, so a change fits in.
+
+## Why djext exists
+
+To start a new project fast without starting it half-built. A fresh project gets what usually comes late or never: login, an admin back office, an audit log, structured logs, rate limits, background tasks, scheduled jobs, email, tests and CI, all wired together and documented. It is meant for small projects that should stay simple: one Django, one Next.js, one Postgres.
+
+Keep it that way. A change should make the starting point better for most projects, not add options for one of them.
+
+## Architecture decisions
+
+- **Decoupled.** Django owns data, auth, the admin and background work, and serves only an API. Next.js owns the UI. Each side has its own folder and deploys on its own (the frontend can go to Vercel).
+- **Same origin through a proxy.** Next rewrites `/api/*` to Django, so the browser talks to one origin: stock Django session cookies and CSRF, with no CORS and no JWT. Don't add token auth for the browser; `modules/bearer` is for programs.
+- **A typed contract.** Django Ninja with typed input and output on every endpoint (a test enforces it). The frontend types are generated from the OpenAPI schema, so a backend change that breaks the frontend fails at compile time.
+- **All you need is Postgres.** The task queue (`django-tasks-db`), scheduled jobs (`cron`), cache (an UNLOGGED table), sessions and the email queue (`post_office`) all live in the database. No Redis, Celery or broker by default. `CACHE_URL=redis://...` is the way out when a project outgrows it. SQLite is the development default.
+- **Stock Django first.** Use what Django ships (auth, sessions, admin, the tasks framework) and the libraries already in use before writing or adding something. The admin is the back office: accounts are created there, there is no self sign-up.
+- **Removable modules.** `backend/apps/` is the base every project keeps; `backend/modules/` holds features a project may drop. Removing a module is deleting its folder and the lines its README lists. That is why modules don't import apps, `config` or each other, and talk through `modules/signals/` (import-linter checks it).
+- **Public ids.** Rows keep an integer `id` for joins; the API and URLs only show `public_id` (UUIDv7), so ids leak neither counts nor order.
+- **Built-in traceability.** One structured log line per event, with a `request_id` shared by Next and Django and by background tasks. Every auth event is logged. The audit log is written in the same transaction as the change, with who asked and whose data it is.
+- **Personal data is anonymized, not deleted** (`User.anonymize()`), so records that point at a person survive.
+- **Configured by env vars** (`python-decouple`), with `.env.example` as the list. `PROJECT_SLUG` renames the project without editing files, so a fork can keep pulling updates.
+- **Current versions on purpose** (Python 3.14, Django 6, Next.js 16): a new project should not start behind.
 
 ## Commands
 
@@ -16,11 +36,9 @@ Run from the repo root:
 ## Rules
 
 - Everything in the repo is in plain English: code, comments, docs and commit messages.
-- Prefer stock Django and the libraries already in use before adding a dependency.
-- `backend/apps/` is the project's base, `backend/modules/` holds optional features. An app may import a module, never the other way around. Modules don't import `config` or each other; they talk through `modules/signals/`. `make lint` enforces this.
-- New module: start from `backend/config/module_template/` (see [Architecture](docs/architecture.md)). Short, singular names (`audit`, `bearer`). Keep its tests in `tests.py` and its docs in `README.md`, including "Depends on" and "Removing it".
-- Models inherit `apps.core.models.BaseModel`. The API shows `public_id` (UUIDv7), never the integer `id`.
+- New module: start from `backend/config/module_template/` (see [Architecture](docs/architecture.md)). Short, singular names (`audit`, `bearer`). Its tests go in `tests.py` and its docs in `README.md`, including "Depends on" and "Removing it".
+- Models inherit `apps.core.models.BaseModel`.
 - One domain function per operation, called by the API, the admin action and anything else that needs it.
-- No Redis, Celery or extra services by default: queue, cron, cache and sessions live in the database.
+- Don't add database queries to failure paths (a failed login, a rejected key) just to enrich a log line.
 - A new env var follows the prefix of its siblings and goes in the matching `.env.example`.
-- Change the docs (module README, `docs/`) in the same change as the code.
+- Change the docs (module README, `docs/`) in the same change as the code. Keep them short; point to `/api/docs` instead of listing endpoints.
