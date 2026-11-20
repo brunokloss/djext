@@ -102,6 +102,15 @@ def _waiting(user) -> bool:
     )
 
 
+def stop_waiting(user) -> None:
+    """A user activated some other way than their link (the team, in the
+    admin) is no longer waiting: blocked later, a link must not let them back
+    in. On every save that may activate a user (signals.py)."""
+    Signup.objects.filter(user=user, verified_at__isnull=True).update(
+        verified_at=timezone.now(), updated_at=timezone.now()
+    )
+
+
 def _send_verification(site: str, user) -> None:
     _send(site, user, VERIFY_TEMPLATE, "/verify", verify_tokens.make_token(user))
 

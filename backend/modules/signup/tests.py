@@ -140,6 +140,19 @@ class VerifyTest(SignupTestCase):
         self.user.refresh_from_db()
         self.assertFalse(self.user.is_active)
 
+    def test_a_user_the_team_activated_and_then_blocked_stays_blocked(self):
+        # Activated by hand in the admin (a full save), never by the link.
+        self.user.is_active = True
+        self.user.save()
+        self.user.is_active = False
+        self.user.save()
+        self.assertEqual(self.verify().status_code, 400)
+        self.post("verify/resend", email="new@example.com")
+        self.signup()
+        self.assertEqual(Email.objects.count(), 1)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+
     def test_an_inactive_user_who_never_signed_up_is_not_activated(self):
         Signup.objects.filter(user=self.user).delete()
         self.assertEqual(self.verify().status_code, 400)
