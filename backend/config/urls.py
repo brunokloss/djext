@@ -23,6 +23,7 @@ from ninja import NinjaAPI
 
 from apps.authd.api import router as authd_router
 from apps.core.api import router as core_router
+from apps.note.api import router as note_router
 from modules.bearer.api import router as bearer_router
 from modules.health.api import router as health_router
 from modules.oauth.api import router as oauth_router
@@ -42,6 +43,7 @@ api = NinjaAPI(
 api.add_router("", health_router)
 api.add_router("", authd_router)
 api.add_router("", core_router)
+api.add_router("", note_router)
 api.add_router("", session_router)
 api.add_router("", oauth_router)
 api.add_router("", bearer_router)
