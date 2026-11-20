@@ -146,6 +146,15 @@ class VerifyTest(SignupTestCase):
         self.user.refresh_from_db()
         self.assertFalse(self.user.is_active)
 
+    def test_an_anonymized_user_waiting_for_verification_stays_blocked(self):
+        self.user.anonymize()
+        self.assertEqual(self.verify().status_code, 400)
+        self.post("verify/resend", email="new@example.com")
+        self.signup()
+        self.assertFalse(Email.objects.exists())
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+
     def test_resend_only_sends_to_who_is_waiting(self):
         self.assertEqual(
             self.post("verify/resend", email="new@example.com").status_code, 204
