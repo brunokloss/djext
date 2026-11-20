@@ -54,10 +54,6 @@ const nextConfig: NextConfig = {
 };
 
 export default withSentryConfig(nextConfig, {
-  // The browser sends its events to Sentry through this route on Next
-  // (app/sentry-tunnel/route.ts): same origin, so the CSP stays connect-src 'self'
-  // and ad blockers don't drop them. proxy.ts lets it through without login.
-  tunnelRoute: "/monitoring",
   // Source maps are uploaded on `next build` only when these are set (a
   // self-hosted Sentry also needs SENTRY_URL). Without them, stack traces show
   // the minified code.
