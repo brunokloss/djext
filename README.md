@@ -54,8 +54,13 @@ I use it to start a new project fast without starting it half-built. Coding agen
 
 ```bash
 make install   # creates the .env files, installs dependencies and migrates
-make dev       # runs backend and frontend together
+make db-seed   # creates the example users, all with the password "password"
+make dev       # runs backend, frontend, task worker and scheduler together
 ```
+
+Open http://localhost:3000 and log in as `ana@example.com` / `password`. `admin@example.com` (same password) is a superuser, for the admin and the superuser-only pages; `bruno@` and `carla@example.com` are plain users. The example users only exist with `DEBUG=True`.
+
+To start over, `make db-reset` deletes the local database, migrates and creates the example users again. SQLite is the default; for Postgres see [Postgres](docs/development.md#postgres-optional).
 
 - Backend: http://localhost:8000
   - API: `/api/` (interactive docs at `/api/docs` once logged in, health checks at `/api/health` and, with the database, `/api/health-db`)
