@@ -744,3 +744,51 @@ class ActionTests(TestCase):
     def test_no_request_does_not_break_the_sender(self):
         action_performed.send(None, name="cache.clear")
         self.assertEqual(AuditLog.objects.filter(action="action").count(), 1)
+
+
+class OriginTest(TestCase):
+    """Through what each log came: the request's path, acting_as or a task."""
+
+    def setUp(self):
+        self.admin = User.objects.create_superuser(
+            email="root@example.com", password="x"
+        )
+
+    def origin_of_new_user(self, email):
+        return logs_of(User.objects.get(email=email)).get().origin
+
+    def test_from_the_api(self):
+        from django.test import Client
+
+        client = Client()
+        client.force_login(self.admin)
+        client.post("/api/auth/logout")
+        log = AuditLog.objects.filter(action=AuditLog.Action.LOGOUT).get()
+        self.assertEqual(log.origin, "api")
+
+    def test_from_the_admin_and_from_a_request_elsewhere(self):
+        from modules.audit.middleware import origin
+
+        factory = RequestFactory()
+        admin_path = "/" + settings.DJANGO_ADMIN_PATH + "/auth/user/"
+        self.assertEqual(origin(factory.get(admin_path)), "admin")
+        self.assertEqual(origin(factory.get("/auth/callback")), "http")
+
+    def test_acting_as_says_it(self):
+        from modules.signals.context import acting_as
+
+        with acting_as(self.admin, origin="mcp"):
+            User.objects.create_user(email="ana@example.com")
+        self.assertEqual(self.origin_of_new_user("ana@example.com"), "mcp")
+
+    def test_a_task_and_the_shell(self):
+        from modules.audit.middleware import in_task
+
+        token = in_task.set(True)
+        try:
+            User.objects.create_user(email="ana@example.com")
+        finally:
+            in_task.reset(token)
+        User.objects.create_user(email="bob@example.com")
+        self.assertEqual(self.origin_of_new_user("ana@example.com"), "task")
+        self.assertEqual(self.origin_of_new_user("bob@example.com"), "system")

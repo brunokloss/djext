@@ -9,10 +9,12 @@ from django.db.models.signals import (
     post_save,
     pre_save,
 )
+from django.tasks.signals import task_finished, task_started
 
 from modules.signals.signals import action_performed
 
 from . import log
+from .middleware import in_task
 
 # Connected per model (connect), not for every model: a delete receiver for
 # all of them would turn every QuerySet.delete() in the project into one
@@ -53,6 +55,14 @@ def on_action(sender, name, request=None, values=None, target=None, **kwargs):
     log.action(request, name, values, target)
 
 
+def on_task_started(sender, **kwargs):
+    in_task.set(True)
+
+
+def on_task_finished(sender, **kwargs):
+    in_task.set(False)
+
+
 def connect():
     """For the models log.load() found. Connecting twice is a no-op."""
     for model in log.AUDITED:
@@ -66,3 +76,6 @@ def connect():
     user_logged_out.connect(on_logout)
     user_login_failed.connect(on_login_failed)
     action_performed.connect(on_action, dispatch_uid="audit.on_action")
+    # What changes inside a task has `task` as its origin.
+    task_started.connect(on_task_started, dispatch_uid="audit.on_task_started")
+    task_finished.connect(on_task_finished, dispatch_uid="audit.on_task_finished")

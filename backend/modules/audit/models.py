@@ -68,6 +68,11 @@ class AuditLog(models.Model):
         verbose_name="user",
         help_text="Who did it",
     )
+    origin = models.CharField(
+        max_length=20,
+        blank=True,
+        help_text="Through what: api, admin, http, task, system or acting_as (mcp)",
+    )
     ip_address = models.GenericIPAddressField(
         null=True, blank=True, help_text="The browser's IP"
     )

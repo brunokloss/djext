@@ -1,6 +1,6 @@
 # Audit log
 
-`modules/audit` saves every login, logout and failed login (with the email typed in), and every create, update, delete and many-to-many change of the models that have an `Audit` class: the whole row before and after (the admin highlights what changed), who did it, their IP, browser and session (an HMAC of the session key salted with the user; a link lists everything that login did) and the `request_id`. It is written in the same transaction as the change, and shown read only in the admin, which also shows it on each audited model's History page.
+`modules/audit` saves every login, logout and failed login (with the email typed in), and every create, update, delete and many-to-many change of the models that have an `Audit` class: the whole row before and after (the admin highlights what changed), who did it and through what (`origin`: `api`, `admin`, `http`, `task`, `system`, or what `acting_as(user, origin=...)` says, such as `mcp`), their IP, browser and session (an HMAC of the session key salted with the user; a link lists everything that login did) and the `request_id`. It is written in the same transaction as the change, and shown read only in the admin, which also shows it on each audited model's History page.
 
 ```python
 class Order(models.Model):

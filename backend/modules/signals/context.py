@@ -5,7 +5,8 @@ request, and the same service serves the API, the admin, a task or an MCP tool.
 - In a request, `RequestContextMiddleware` keeps it in `current_request`, and
   the actor is the logged-in user.
 - Outside one (a task, a command, an MCP tool), wrap the call in
-  `with acting_as(user):` so the audit log and the logs know who did it.
+  `with acting_as(user, origin="mcp"):` so the audit log and the logs know
+  who did it, and the audit log where it came from.
 
 Like signals.py, this imports nothing of ours: every module may use it.
 """
@@ -17,16 +18,24 @@ from contextvars import ContextVar
 current_request = ContextVar("current_request", default=None)
 
 _acting = ContextVar("acting_as", default=None)
+_origin = ContextVar("acting_origin", default="")
 
 
 @contextmanager
-def acting_as(user):
-    """Says who is acting when there is no request (or overrides it)."""
-    token = _acting.set(user)
+def acting_as(user, origin: str = ""):
+    """Says who is acting when there is no request (or overrides it), and
+    optionally through what (`"mcp"`, `"command"`): the audit log's origin."""
+    user_token, origin_token = _acting.set(user), _origin.set(origin)
     try:
         yield
     finally:
-        _acting.reset(token)
+        _acting.reset(user_token)
+        _origin.reset(origin_token)
+
+
+def acting_origin() -> str:
+    """The origin `acting_as` was given, or ""."""
+    return _origin.get()
 
 
 def request_user(request):
