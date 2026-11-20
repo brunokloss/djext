@@ -11,7 +11,7 @@ It shows how a feature is put together:
 - `services.email_note()`: stock `send_mail`, which `mail` queues for a worker, and an `action_performed` signal sent without the request: `audit` and `log` find who asked from the request being handled, or from `acting_as(user)` outside one.
 - `tasks.py`: a daily `cron` job that deletes notes untouched for `NOTE_RETENTION_DAYS` (0, the default, keeps them). It starts disabled, like every new job.
 - `tests/`: `test_services.py` for the rules without HTTP (including the audit log under `acting_as`, as a task or an MCP tool would run), `test_api.py` for the HTTP side (status codes, shape, who may reach what).
-- `frontend/app/(app)/notes/`: the page, which reads the notes on the server (`serverApi()`), hands them to `useApi` so SWR starts from them, and writes with `api`, plus `frontend/e2e/note.spec.ts`.
+- `frontend/app/(app)/notes/`: the page, a Server Component that reads the notes with `serverApi()` and renders them, and `note-forms.tsx`, the Client Components you click, which write with `api` and then `router.refresh()`. Plus `frontend/e2e/note.spec.ts`.
 
 ## Removing it
 

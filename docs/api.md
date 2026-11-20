@@ -34,8 +34,8 @@ backend (Ninja) ──export──> frontend/lib/api/openapi.json (not committed
 
 - **On the server** (Server Components) it calls Django directly at `BACKEND_URL`.
 - **In the browser** it uses relative URLs, so requests go through the Next proxy (same origin, so cookies and CSRF just work).
-- **In Client Components**, read data with `useApi` from `lib/api/hooks.ts` ([swr-openapi](https://openapi-ts.dev/swr-openapi/)), typed the same way: `const { data, error, isLoading } = useApi("/api/users/me")`.
-- **To render with data**, the page reads it on the server with `serverApi()` and hands it to `useApi` as `fallbackData`, so the HTML comes with it and SWR takes over from there. `frontend/app/(app)/notes/` does it.
+- **A page** is a Server Component that reads with `serverApi()` and renders the data. Only the parts you click are Client Components: they write with `api`, then `router.refresh()` renders the page again. `frontend/app/(app)/notes/` does it.
+- **In Client Components**, for data that must update in the browser on its own (polling, focus), read with `useApi` from `lib/api/hooks.ts` ([swr-openapi](https://openapi-ts.dev/swr-openapi/)), typed the same way: `const { data, error, isLoading } = useApi("/api/users/me")`.
 - **The SWR cache** lives as long as the tab. Login and logout empty it (`useClearApiCache`), so a new user never sees the last one's data.
 
 Browser POST/PUT/PATCH/DELETE requests get Django's CSRF token added by the client (`lib/api/csrf.ts`).
