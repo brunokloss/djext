@@ -5,6 +5,16 @@ import { projectSlug } from "@/lib/project";
 // SESSION_COOKIE_NAME in backend/config/settings.py.
 export const SESSION_COOKIE = `_${projectSlug}_session`;
 
+// Pages for people who are logged out. Besides /login, the self-service ones
+// (backend/modules/signup), which answer 404 while that is off.
+const PUBLIC_PAGES = new Set([
+  "/login",
+  "/signup",
+  "/verify",
+  "/forgot-password",
+  "/reset-password",
+]);
+
 // Where an anonymous visit to `pathname` must go, or null to let it through.
 //
 // Only an optimistic check: it looks at whether the session cookie exists, not
@@ -18,7 +28,7 @@ export function loginRedirect(
   hasSession: boolean,
 ): string | null {
   if (hasSession) return null;
-  if (pathname === "/login") return null;
+  if (PUBLIC_PAGES.has(pathname)) return null;
   // Django's own URLs (behind the proxy) do their own login checks.
   if (pathname === "/api" || pathname.startsWith("/api/")) return null;
   // Files from public/ (robots.txt, images…) and Next's internals.

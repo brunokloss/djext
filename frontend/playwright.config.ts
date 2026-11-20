@@ -30,6 +30,8 @@ export default defineConfig({
       cwd: "../backend",
       url: "http://localhost:8000/api/health",
       reuseExistingServer: !process.env.CI,
+      // Off by default; on here for e2e/signup.spec.ts (modules/signup).
+      env: { AUTH_SIGNUP: "True", AUTH_PASSWORD_RESET: "True" },
     },
     ...(oauth
       ? [

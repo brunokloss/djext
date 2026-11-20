@@ -27,9 +27,13 @@ test("a session cookie lets the request through", () => {
   expect(loginRedirect("/reports", "", true)).toBeNull();
 });
 
-test("the login page, Django and files are left alone", () => {
+test("the logged-out pages, Django and files are left alone", () => {
   for (const path of [
     "/login",
+    "/signup",
+    "/verify",
+    "/forgot-password",
+    "/reset-password",
     "/api",
     "/api/docs",
     "/_next/data/x.json",
