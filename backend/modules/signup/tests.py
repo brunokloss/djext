@@ -197,6 +197,8 @@ class PasswordResetTest(SignupTestCase):
         found = link(Email.objects.get())
         del found["path"]
         self.reset(**found)
+        # Deleted, not only refused: the session list doesn't show them.
+        self.assertFalse(self.user.sessions.exists())
         self.assertEqual(other.get("/api/users/me").status_code, 401)
 
     @override_settings(AUTH_LOGIN_THROTTLE_EMAIL="2/15min", AUTH_LOGIN_THROTTLE_IP="")
