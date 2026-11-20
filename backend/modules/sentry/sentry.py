@@ -65,6 +65,9 @@ def init_sentry(dsn: str, environment: str, traces_sample_rate: float) -> None:
         # Of the user, only the id (SentryUserMiddleware). The request_id tag
         # leads to the logs.
         send_default_pii=False,
+        # Not the local variables of each frame: they hold tokens, keys and
+        # personal data when a call fails.
+        include_local_variables=False,
         before_send=_add_request_id,
         before_send_transaction=_add_request_id,
     )

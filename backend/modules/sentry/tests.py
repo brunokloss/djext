@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+import sentry_sdk
 import structlog
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -76,6 +77,28 @@ class InitTest(SimpleTestCase):
         self.assertIs(options["before_send_transaction"], _add_request_id)
         self.assertEqual(options["environment"], "production")
         self.assertEqual(options["traces_sample_rate"], 0.5)
+
+
+class LocalVariablesTest(SimpleTestCase):
+    """A real event, through a fake transport: what would reach Sentry."""
+
+    def test_no_local_variables_leave(self):
+        events = []
+        with patch("modules.sentry.sentry.sentry_sdk.init") as init:
+            init_sentry("https://key@sentry.example.com/1", "test", 0.0)
+        client = sentry_sdk.Client(**init.call_args.kwargs, transport=events.append)
+        token = "secret-token"  # noqa: F841 - the local that must not leave
+        try:
+            raise RuntimeError("boom")
+        except RuntimeError:
+            with sentry_sdk.new_scope() as scope:
+                scope.set_client(client)
+                sentry_sdk.capture_exception()
+        client.flush()
+        frames = events[0]["exception"]["values"][0]["stacktrace"]["frames"]
+        self.assertTrue(frames)
+        self.assertFalse(any("vars" in frame for frame in frames))
+        client.close()
 
 
 class DebugErrorTest(TestCase):
