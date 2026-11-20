@@ -42,7 +42,8 @@ Run from the repo root:
 - Everything in the repo is in plain English: code, comments, docs and commit messages.
 - New module: start from `backend/config/module_template/` (see [Architecture](docs/architecture.md)). Short, singular names (`audit`, `bearer`). Its tests go in `tests.py` and its docs in `README.md`, including "Depends on" and "Removing it".
 - Models inherit `apps.core.models.BaseModel`.
-- One domain function per operation, called by the API, the admin action and anything else that needs it.
+- Every operation goes through a service, even a trivial one: a function in the app's `services.py` that the API, the admin, tasks, commands and any new entry point (an MCP tool, a webhook) call. Views stay boring: read the request, call the service, shape the answer. So a new way in is a thin adapter, and the rules, the audit log and the side effects come with it.
+- A service takes the user it acts for, never the HTTP request. Outside a request (a task, a command, an MCP tool), call it inside `with acting_as(user):` (`modules/signals/context.py`) so the audit log and the logs know who did it.
 - Don't add database queries to failure paths (a failed login, a rejected key) just to enrich a log line.
 - A new env var follows the prefix of its siblings and goes in the matching `.env.example`.
 - Change the docs (module README, `docs/`) in the same change as the code. Keep them short; point to `/api/docs` instead of listing endpoints.

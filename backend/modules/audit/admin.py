@@ -135,9 +135,10 @@ class AuditLogAdmin(admin.ModelAdmin):
         "content_type",
         "object_repr",
         "actor",
+        "origin",
         "ip_address",
     )
-    list_filter = ("action", "content_type", "name")
+    list_filter = ("action", "origin", "content_type", "name")
     search_fields = (
         "name",
         "object_id",
@@ -168,7 +169,7 @@ class AuditLogAdmin(admin.ModelAdmin):
             "Author",
             {
                 "fields": (
-                    "actor",
+                    ("actor", "origin"),
                     ("ip_address", "user_agent"),
                     ("session_link", "request_link"),
                 ),
@@ -187,6 +188,7 @@ class AuditLogAdmin(admin.ModelAdmin):
         "subject_links",
         "diff",
         "actor",
+        "origin",
         "ip_address",
         "user_agent",
         "session_link",

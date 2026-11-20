@@ -133,8 +133,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Puts the user's id on Sentry events. Off without SENTRY_DSN.
     "modules.sentry.sentry.SentryUserMiddleware",
-    # After auth, so the audit log knows who made each change.
-    "modules.audit.middleware.AuditMiddleware",
+    # After auth: keeps the request for services and receivers, so the audit
+    # log and the logs know who did what (modules/signals/context.py).
+    "modules.signals.context.RequestContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     # Last, so it sees the user and the final status.
