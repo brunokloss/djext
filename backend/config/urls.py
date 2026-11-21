@@ -29,6 +29,7 @@ from modules.health.api import router as health_router
 from modules.oauth.api import router as oauth_router
 from modules.sentry.api import router as sentry_router
 from modules.session.api import router as session_router
+from modules.signup.api import router as signup_router
 from modules.throttle.throttles import throttles
 
 # /api/docs and /api/openapi.json are for logged-in users only.
@@ -48,6 +49,7 @@ api.add_router("", session_router)
 api.add_router("", oauth_router)
 api.add_router("", bearer_router)
 api.add_router("", sentry_router)
+api.add_router("", signup_router)
 
 
 urlpatterns = [

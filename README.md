@@ -10,7 +10,7 @@ This is the architecture I believe in for small products: a decoupled Django and
 
 I use it to start a new project fast without starting it half-built. Coding agents tend to write everything from scratch: a new login, new logging, a new folder layout, every time. djext is a small, tested base they can build on instead. A fresh project already has login, an admin back office, an audit log, structured logs, rate limits, background tasks, scheduled jobs, email, tests and CI. [AGENTS.md](AGENTS.md) tells agents how it is put together and why.
 
-**djext is B2B.** The team creates the accounts in the admin. There is no self sign-up, email verification or password reset by email yet (see [#2](https://github.com/brunokloss/djext/issues/2)).
+**djext is B2B.** The team creates the accounts in the admin. Self sign-up, email verification and password reset by email come with [signup](backend/modules/signup/README.md), off until you turn them on.
 
 ![The example Notes page, with the sidebar](docs/images/notes.png)
 
@@ -113,7 +113,7 @@ Run `make help` for the full list.
 - [API](docs/api.md): routers, typed endpoints and the typed client
 - [Deployment](docs/deployment.md): the production images, the processes and Vercel
 - [authd](backend/apps/authd/README.md): users, anonymizing them, login
-- Each module documents itself in its `README.md`: [audit](backend/modules/audit/README.md), [bearer](backend/modules/bearer/README.md), [cron](backend/modules/cron/README.md), [crypto](backend/modules/crypto/README.md), [idempotency](backend/modules/idempotency/README.md), [log](backend/modules/log/README.md), [mail](backend/modules/mail/README.md), [oauth](backend/modules/oauth/README.md), [queue](backend/modules/queue/README.md), [runtime](backend/modules/runtime/README.md), [sentry](backend/modules/sentry/README.md), [storage](backend/modules/storage/README.md)
+- Each module documents itself in its `README.md`: [audit](backend/modules/audit/README.md), [bearer](backend/modules/bearer/README.md), [cron](backend/modules/cron/README.md), [crypto](backend/modules/crypto/README.md), [idempotency](backend/modules/idempotency/README.md), [log](backend/modules/log/README.md), [mail](backend/modules/mail/README.md), [oauth](backend/modules/oauth/README.md), [queue](backend/modules/queue/README.md), [runtime](backend/modules/runtime/README.md), [sentry](backend/modules/sentry/README.md), [signup](backend/modules/signup/README.md), [storage](backend/modules/storage/README.md)
 
 ## Status
 

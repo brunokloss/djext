@@ -6,7 +6,7 @@ Notes for coding agents working on djext. The details are in [README.md](README.
 
 To start a new project fast without starting it half-built. A fresh project gets what usually comes late or never: login, an admin back office, an audit log, structured logs, rate limits, background tasks, scheduled jobs, email, tests and CI, all wired together and documented. It is meant for small projects that should stay simple: one Django, one Next.js, one Postgres.
 
-**djext is B2B.** The team creates the accounts in the admin and hands them out. There are no B2C tools yet: no self sign-up, email verification, password reset by email or invites. Don't assume they exist, and don't add them as a side effect of another change.
+**djext is B2B.** The team creates the accounts in the admin and hands them out. Self sign-up, email verification and password reset by email are `modules/signup`, off by default (`AUTH_SIGNUP`, `AUTH_PASSWORD_RESET`). There are no invites. Don't assume a project has these on, and don't add B2C tools as a side effect of another change.
 
 Keep it that way. A change should make the starting point better for most projects, not add options for one of them.
 

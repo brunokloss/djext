@@ -100,6 +100,7 @@ class User(AbstractUser):
         from modules.mail.emails import delete_emails_to
         from modules.oauth.models import UserIdentity
         from modules.session import sessions
+        from modules.signup.models import Signup
 
         with transaction.atomic():
             action_performed.send(
@@ -117,5 +118,8 @@ class User(AbstractUser):
             shred(request, self)
             # The stored responses may hold their data.
             IdempotencyKey.objects.filter(user=self).delete()
+            # A sign-up still waiting for its verification would let the link
+            # activate them again.
+            Signup.objects.filter(user=self).delete()
             # Last, so it masks what the lines above logged too.
             audit.forget(self.pk, self.email)

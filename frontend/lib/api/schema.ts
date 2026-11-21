@@ -94,6 +94,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forgot Password
+         * @description Sends a link to choose a new password. 204 whether the email has an
+         *     account or not.
+         */
+        post: operations["modules_signup_api_forgot_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Password
+         * @description Sets the new password from the link in the email and ends the user's
+         *     sessions. 400 when the link is wrong, expired or used already, or the
+         *     password is too weak.
+         */
+        post: operations["modules_signup_api_reset_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/providers": {
         parameters: {
             query?: never;
@@ -155,6 +198,71 @@ export interface paths {
          * @description Logs that session out. Ending the current one is a logout.
          */
         delete: operations["modules_session_api_end_session"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signup
+         * @description Creates an account, inactive until the email is verified: the link goes
+         *     by email. 204 whether the email has an account or not. 400 when the
+         *     password is too weak (AUTH_PASSWORD_VALIDATORS).
+         */
+        post: operations["modules_signup_api_signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify
+         * @description Activates the account from the link in the email, given the password
+         *     it was signed up with. 400 when the link is wrong, expired or used
+         *     already, or the password is wrong. Log in afterwards.
+         */
+        post: operations["modules_signup_api_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/verify/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Verification
+         * @description Sends the verification link again, if the email is waiting for one.
+         *     204 either way.
+         */
+        post: operations["modules_signup_api_resend_verification"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -404,6 +512,11 @@ export interface components {
              */
             rotated_at: string;
         };
+        /** EmailIn */
+        EmailIn: {
+            /** Email */
+            email: string;
+        };
         /** ErrorOut */
         ErrorOut: {
             /** Detail */
@@ -455,8 +568,12 @@ export interface components {
         LoginOptionsOut: {
             /** Password */
             password: boolean;
+            /** Password Reset */
+            password_reset: boolean;
             /** Providers */
             providers: components["schemas"]["LoginOptionOut"][];
+            /** Signup */
+            signup: boolean;
         };
         /**
          * MeOut
@@ -564,6 +681,15 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** ResetIn */
+        ResetIn: {
+            /** Password */
+            password: string;
+            /** Token */
+            token: string;
+            /** Uid */
+            uid: string;
+        };
         /** SessionOut */
         SessionOut: {
             /** Current */
@@ -579,6 +705,23 @@ export interface components {
             logged_in_at: string | null;
             /** User Agent */
             user_agent: string;
+        };
+        /** SignupIn */
+        SignupIn: {
+            /** Email */
+            email: string;
+            /**
+             * First Name
+             * @default
+             */
+            first_name: string;
+            /**
+             * Last Name
+             * @default
+             */
+            last_name: string;
+            /** Password */
+            password: string;
         };
         /** UserOut */
         UserOut: {
@@ -597,6 +740,15 @@ export interface components {
             last_name: string;
             /** Phone Number */
             phone_number: string;
+        };
+        /** VerifyIn */
+        VerifyIn: {
+            /** Password */
+            password: string;
+            /** Token */
+            token: string;
+            /** Uid */
+            uid: string;
         };
     };
     responses: never;
@@ -770,6 +922,95 @@ export interface operations {
             };
         };
     };
+    modules_signup_api_forgot_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_reset_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     apps_authd_api_auth_list_login_options: {
         parameters: {
             query?: never;
@@ -855,6 +1096,144 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotFoundOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_resend_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };
