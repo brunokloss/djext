@@ -42,7 +42,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
       {/* From /verify (modules/signup). */}
       {params.verified === "1" && !error && (
         <p role="status" className="text-sm text-muted-foreground">
-          Your email is confirmed. You can log in now.
+          Your account is confirmed. Log in to continue.
         </p>
       )}
       {error && (

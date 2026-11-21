@@ -47,9 +47,8 @@ test("sign up, confirm the email and log in", async ({ page }) => {
   await expect(page.getByText("Invalid email or password")).toBeVisible();
 
   await page.goto(lastLink(email));
-  await page.getByRole("button", { name: "Confirm my email" }).click();
   await expect(page).toHaveURL("/login?verified=1");
-  await expect(page.getByText("Your email is confirmed")).toBeVisible();
+  await expect(page.getByText("Your account is confirmed")).toBeVisible();
 
   await login(page, email, password);
   await expect(page).toHaveURL("/");

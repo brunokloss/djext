@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,29 +124,33 @@ export function SignupForm() {
   );
 }
 
-// A button, not a request on page load: mail scanners open links, and must
-// not use them up. Once confirmed it goes to the login. A dead link offers a
-// new one.
+// Opening the link confirms the account and goes to the login. A dead link
+// offers a new one.
 export function VerifyEmail({ uid, token }: { uid: string; token: string }) {
   const router = useRouter();
-  const [state, verify, pending] = useActionState(async (): Promise<State> => {
-    const { error } = await api.POST("/api/auth/verify", {
-      body: { uid, token },
+  const [error, setError] = useState<string>();
+  // Once: React runs effects twice in development, and a second post would
+  // find the link used.
+  const sent = useRef(false);
+  useEffect(() => {
+    if (sent.current) return;
+    sent.current = true;
+    api.POST("/api/auth/verify", { body: { uid, token } }).then(({ error }) => {
+      if (error) setError(error.detail);
+      else router.replace("/login?verified=1");
     });
-    if (error) return { error: error.detail };
-    router.push("/login?verified=1");
-    return { done: true };
-  }, {});
+  }, [uid, token, router]);
 
+  if (!error)
+    return (
+      <p className="text-center text-sm text-muted-foreground">
+        Confirming your email…
+      </p>
+    );
   return (
     <>
-      <form action={verify} className="flex flex-col gap-4">
-        <Alert error={state.error} />
-        <Button type="submit" disabled={pending || state.done}>
-          {pending ? "Confirming…" : "Confirm my email"}
-        </Button>
-      </form>
-      {state.error && (
+      <Alert error={error} />
+      {error && (
         <EmailLinkForm
           path="/api/auth/verify/resend"
           button="Send a new link"
