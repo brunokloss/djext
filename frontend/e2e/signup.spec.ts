@@ -75,6 +75,8 @@ get_user_model().objects.create_user(email=${JSON.stringify(email)}, password="o
   );
   await page.goto("/login");
   await page.getByRole("link", { name: "Forgot your password?" }).click();
+  // Else the email goes into /login's field, before the page changes.
+  await expect(page).toHaveURL("/forgot-password");
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Send the link" }).click();
   await expect(page.getByText("is on its way")).toBeVisible();
