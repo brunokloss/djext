@@ -65,7 +65,9 @@ export interface paths {
         /**
          * Login View
          * @description Starts a session. Login rotates the CSRF token: read the cookie again.
-         *     429 after too many failures (Retry-After says when to try again).
+         *     403 with the right password for an account that can't log in yet (its
+         *     email is not confirmed). 429 after too many failures (Retry-After says
+         *     when to try again).
          */
         post: operations["apps_authd_api_auth_login_view"];
         delete?: never;

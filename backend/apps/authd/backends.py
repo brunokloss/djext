@@ -21,6 +21,11 @@ class EmailBackend(ModelBackend):
             # Hash anyway, so a missing user takes as long as a wrong password.
             User().set_password(password)
             return None
-        if user.check_password(password) and self.user_can_authenticate(user):
-            return user
+        if user.check_password(password):
+            if self.user_can_authenticate(user):
+                return user
+            # The right password for an inactive user: the login may say why
+            # (inactive_login in modules/signals/signals.py).
+            if request is not None:
+                request.auth_inactive_user = user
         return None

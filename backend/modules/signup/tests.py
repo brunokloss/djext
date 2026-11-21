@@ -105,6 +105,15 @@ class SignupTest(SignupTestCase):
 
     def test_the_user_cannot_log_in_before_verifying(self):
         self.signup()
+        # The right password: told to confirm the email.
+        response = self.post("login", email="new@example.com", password=PASSWORD)
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("Confirm your email", response.json()["detail"])
+        # A wrong one: told nothing.
+        response = self.post("login", email="new@example.com", password="wrong")
+        self.assertEqual(response.status_code, 401)
+        # Blocked by the team, not waiting: told nothing either.
+        Signup.objects.all().delete()
         response = self.post("login", email="new@example.com", password=PASSWORD)
         self.assertEqual(response.status_code, 401)
 

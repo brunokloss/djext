@@ -9,7 +9,11 @@ from ninja.decorators import decorate_view
 from ninja.throttling import BaseThrottle
 from ninja.utils import check_csrf
 
-from modules.signals.signals import login_options_requested, login_throttled
+from modules.signals.signals import (
+    inactive_login,
+    login_options_requested,
+    login_throttled,
+)
 from modules.throttle.throttles import FailureLimit, hashed
 
 from .schemas import ErrorOut, UserOut
@@ -97,7 +101,9 @@ def limited_authenticate(sender, request: HttpRequest, email: str, password: str
 )
 def login_view(request: HttpRequest, response: HttpResponse, data: LoginIn):
     """Starts a session. Login rotates the CSRF token: read the cookie again.
-    429 after too many failures (Retry-After says when to try again)."""
+    403 with the right password for an account that can't log in yet (its
+    email is not confirmed). 429 after too many failures (Retry-After says
+    when to try again)."""
     if check_csrf(request):
         return 403, {"detail": "CSRF check failed"}
     if not settings.AUTH_PASSWORD:
@@ -108,6 +114,11 @@ def login_view(request: HttpRequest, response: HttpResponse, data: LoginIn):
         response["Retry-After"] = str(wait)
         return 429, {"detail": "Too many failed logins. Try again later."}
     if user is None:
+        # The right password, but a module knows why the user is inactive.
+        if inactive := getattr(request, "auth_inactive_user", None):
+            for _, detail in inactive_login.send(login_view, user=inactive):
+                if detail:
+                    return 403, {"detail": detail}
         return 401, {"detail": "Invalid email or password"}
     login(request, user)
     return user

@@ -24,6 +24,14 @@ login_throttled = Signal()
 # {"name", "label", "url"}. authd doesn't know any of them.
 login_options_requested = Signal()
 
+# A login with the right password for a user who is not active. Sent as
+# `inactive_login.send(sender, user=user)`: a module that knows why returns the
+# message the login shows (modules/signup: the email is not confirmed yet),
+# else None. Without one, the login says "Invalid email or password", as for a
+# wrong password. Only the password's owner gets here, so it tells nothing to
+# whoever is guessing emails.
+inactive_login = Signal()
+
 # Not a signal: a login that is not by password sets `request.auth_provider`
 # ("google", "microsoft", ...) before calling login() (modules/oauth does).
 # modules/audit logs it as the login's method; without it, "password".

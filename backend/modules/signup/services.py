@@ -66,7 +66,7 @@ def sign_up(site: str, email: str, password: str, first_name="", last_name=""):
     email = normalize_email(email)
     existing = User.objects.filter(email__iexact=email).first()
     if existing is not None:
-        if _waiting(existing):
+        if waiting(existing):
             existing.set_password(password)
             existing.first_name, existing.last_name = first_name, last_name
             existing.save(update_fields=["password", "first_name", "last_name"])
@@ -92,7 +92,7 @@ def sign_up(site: str, email: str, password: str, first_name="", last_name=""):
     _send_verification(site, user)
 
 
-def _waiting(user) -> bool:
+def waiting(user) -> bool:
     """Signed up and not verified yet: never one the team blocked."""
     return (
         not user.is_active
@@ -115,7 +115,7 @@ def _send_verification(site: str, user) -> None:
 
 def resend_verification(site: str, email: str) -> None:
     user = User.objects.filter(email__iexact=normalize_email(email)).first()
-    if user is not None and _waiting(user):
+    if user is not None and waiting(user):
         _send_verification(site, user)
 
 
