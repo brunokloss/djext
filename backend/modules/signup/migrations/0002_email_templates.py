@@ -3,15 +3,16 @@ from django.db import migrations
 # The emails this module sends (account.py). Created here, not only by
 # `make db-seed`, so they exist wherever it is migrated. Edit them in the
 # admin (Post Office › Email templates); an existing one is left as it is.
-# The links expire after PASSWORD_RESET_TIMEOUT (1 hour).
+# The links expire after PASSWORD_RESET_TIMEOUT (1 hour). The plain text is
+# rendered with autoescape off: otherwise the & in the link becomes &amp;.
 TEMPLATES = [
     {
         "name": "verify_email",
         "description": "Sign-up: the link that activates the account (modules/signup).",
         "subject": "Confirm your email",
         "content": (
-            "Hi {{ name }},\n\nConfirm your email to activate your account: "
-            "{{ url }}\nThe link expires in 1 hour.\n"
+            "{% autoescape off %}Hi {{ name }},\n\nConfirm your email to activate "
+            "your account: {{ url }}\nThe link expires in 1 hour.\n{% endautoescape %}"
         ),
         "html_content": (
             '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
@@ -28,7 +29,8 @@ TEMPLATES = [
         "description": "Password reset: a link that expires (modules/signup).",
         "subject": "Reset your password",
         "content": (
-            "Hi {{ name }},\n\nReset it here: {{ url }}\nThe link expires in 1 hour.\n"
+            "{% autoescape off %}Hi {{ name }},\n\nReset it here: {{ url }}\n"
+            "The link expires in 1 hour.\n{% endautoescape %}"
         ),
         "html_content": (
             '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'

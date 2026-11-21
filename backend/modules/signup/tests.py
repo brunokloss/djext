@@ -51,6 +51,16 @@ class SignupTest(SignupTestCase):
         )
         self.assertEqual(link(email)["uid"], user.username)
 
+    def test_the_plain_text_has_the_link_as_it_is(self):
+        self.post(
+            "signup", email="new@example.com", password=PASSWORD, first_name="D'Ávila"
+        )
+        email = Email.objects.get()
+        body = email.email_message().body
+        self.assertIn(email.context["url"], body)
+        self.assertNotIn("&amp;", body)
+        self.assertIn("Hi D'Ávila,", body)
+
     def test_an_existing_email_gets_the_same_answer_and_nothing(self):
         User.objects.create_user(email="ana@example.com", password="x")
         self.assertEqual(self.signup(email="ANA@example.com").status_code, 204)

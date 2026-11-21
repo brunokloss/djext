@@ -1,12 +1,17 @@
 from django.core.management.base import BaseCommand
 from post_office.models import EmailTemplate
 
+# The plain text ("content") is rendered with autoescape off, like any text
+# that isn't HTML: otherwise a & in a link or a name becomes &amp;.
 TEMPLATES = [
     {
         "name": "welcome",
         "description": "Example: a greeting with a button. Edit it in the admin.",
         "subject": "Welcome, {{ name }}!",
-        "content": "Hi {{ name }},\n\nWelcome aboard. Open {{ url }} to get started.\n",
+        "content": (
+            "{% autoescape off %}Hi {{ name }},\n\nWelcome aboard. Open {{ url }} "
+            "to get started.\n{% endautoescape %}"
+        ),
         "html_content": (
             '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
             "<h1>Welcome, {{ name }}!</h1>"
@@ -21,7 +26,8 @@ TEMPLATES = [
         "description": "Example: a link that expires. Edit it in the admin.",
         "subject": "Reset your password",
         "content": (
-            "Hi {{ name }},\n\nReset it here: {{ url }}\nThe link expires in 1 hour.\n"
+            "{% autoescape off %}Hi {{ name }},\n\nReset it here: {{ url }}\n"
+            "The link expires in 1 hour.\n{% endautoescape %}"
         ),
         "html_content": (
             '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
@@ -37,7 +43,8 @@ TEMPLATES = [
         "description": "Example: sent with the invoice attached.",
         "subject": "Invoice {{ number }}",
         "content": (
-            "Hi {{ name }},\n\nInvoice {{ number }} is attached. Total: {{ total }}.\n"
+            "{% autoescape off %}Hi {{ name }},\n\nInvoice {{ number }} is attached. "
+            "Total: {{ total }}.\n{% endautoescape %}"
         ),
         "html_content": (
             '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
