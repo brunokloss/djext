@@ -28,6 +28,14 @@ function Field({
   );
 }
 
+// Typed twice, so a typo doesn't lock the person out. Checked here: the
+// backend gets one password.
+const MISMATCH = "The two passwords are not the same.";
+function samePassword(form: FormData): string | null {
+  const password = String(form.get("password"));
+  return password === String(form.get("password2")) ? password : null;
+}
+
 function Alert({ error }: { error?: string }) {
   if (!error) return null;
   return (
@@ -61,10 +69,12 @@ export function SignupForm() {
   const [values, setValues] = useState({ name: "", email: "" });
   const [state, signup, pending] = useActionState(
     async (_previous: State, form: FormData): Promise<State> => {
+      const password = samePassword(form);
+      if (password === null) return { error: MISMATCH };
       const { error } = await api.POST("/api/auth/signup", {
         body: {
           email: values.email,
-          password: String(form.get("password")),
+          password,
           first_name: values.name,
           last_name: "",
         },
@@ -104,6 +114,12 @@ export function SignupForm() {
       <Field
         id="password"
         label="Password"
+        type="password"
+        autoComplete="new-password"
+      />
+      <Field
+        id="password2"
+        label="Confirm password"
         type="password"
         autoComplete="new-password"
       />
@@ -223,8 +239,10 @@ export function ResetPasswordForm({
 }) {
   const [state, reset, pending] = useActionState(
     async (_previous: State, form: FormData): Promise<State> => {
+      const password = samePassword(form);
+      if (password === null) return { error: MISMATCH };
       const { error } = await api.POST("/api/auth/password/reset", {
-        body: { uid, token, password: String(form.get("password")) },
+        body: { uid, token, password },
       });
       return error ? { error: error.detail } : { done: true };
     },
@@ -245,6 +263,12 @@ export function ResetPasswordForm({
       <Field
         id="password"
         label="New password"
+        type="password"
+        autoComplete="new-password"
+      />
+      <Field
+        id="password2"
+        label="Confirm the new password"
         type="password"
         autoComplete="new-password"
       />

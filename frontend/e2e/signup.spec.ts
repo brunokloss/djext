@@ -38,7 +38,14 @@ test("sign up, confirm the email and log in", async ({ page }) => {
   await expect(page).toHaveURL("/signup");
   await page.getByLabel("Name").fill("Eve");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill(password);
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByLabel("Confirm password").fill("a-typo");
+  await page.getByRole("button", { name: "Sign up" }).click();
+  await expect(
+    page.getByText("The two passwords are not the same"),
+  ).toBeVisible();
+  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByLabel("Confirm password").fill(password);
   await page.getByRole("button", { name: "Sign up" }).click();
   await expect(page.getByText("Check your email")).toBeVisible();
 
@@ -82,13 +89,23 @@ get_user_model().objects.create_user(email=${JSON.stringify(email)}, password="o
 
   const link = lastLink(email);
   await page.goto(link);
-  await page.getByLabel("New password").fill("a-brand-new-password");
+  await page
+    .getByLabel("New password", { exact: true })
+    .fill("a-brand-new-password");
+  await page
+    .getByLabel("Confirm the new password")
+    .fill("a-brand-new-password");
   await page.getByRole("button", { name: "Save the password" }).click();
   await expect(page.getByText("Your password was changed")).toBeVisible();
 
   // The link works once.
   await page.goto(link);
-  await page.getByLabel("New password").fill("yet-another-password");
+  await page
+    .getByLabel("New password", { exact: true })
+    .fill("yet-another-password");
+  await page
+    .getByLabel("Confirm the new password")
+    .fill("yet-another-password");
   await page.getByRole("button", { name: "Save the password" }).click();
   await expect(
     page.getByText("This link is invalid or has expired"),
