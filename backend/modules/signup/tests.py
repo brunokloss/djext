@@ -77,10 +77,9 @@ class SignupTest(SignupTestCase):
         second = link(Email.objects.latest("id"))
         for found in (first, second):
             del found["path"]
-        response = self.post("verify", password="someone-elses-password", **first)
-        self.assertEqual(response.status_code, 400)
-        response = self.post("verify", password=PASSWORD, **second)
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(self.post("verify", **first).status_code, 400)
+        self.assertEqual(self.post("verify", **second).status_code, 204)
+        self.assertTrue(User.objects.get().check_password(PASSWORD))
 
     def test_a_bad_email_or_a_long_name_is_refused(self):
         for body in (
@@ -122,7 +121,7 @@ class VerifyTest(SignupTestCase):
         self.path = self.link.pop("path")
 
     def verify(self, **body):
-        return self.post("verify", **{**self.link, "password": PASSWORD, **body})
+        return self.post("verify", **{**self.link, **body})
 
     def test_activates_the_user_once(self):
         self.assertEqual(self.path, "/verify")
@@ -135,9 +134,8 @@ class VerifyTest(SignupTestCase):
         # The link was used.
         self.assertEqual(self.verify().status_code, 400)
 
-    def test_a_wrong_token_uid_or_password_is_refused(self):
+    def test_a_wrong_token_or_uid_is_refused(self):
         self.assertEqual(self.verify(token="1-abc").status_code, 400)
-        self.assertEqual(self.verify(password="wrong").status_code, 400)
         self.assertEqual(self.verify(uid="not-a-user").status_code, 400)
         self.user.refresh_from_db()
         self.assertFalse(self.user.is_active)

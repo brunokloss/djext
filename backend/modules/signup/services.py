@@ -62,9 +62,7 @@ def sign_up(site: str, email: str, password: str, first_name="", last_name=""):
     """Creates an inactive user and sends them the verification link; check()
     first. An email that has an account already gets nothing, unless it is
     still waiting for its verification: then the latest sign-up wins (its
-    password and names, which kills the earlier links) and a new link goes.
-    So someone who signed up with another person's email can't keep that
-    account: the link asks for the password (verify())."""
+    password and names, which kills the earlier links) and a new link goes."""
     email = normalize_email(email)
     existing = User.objects.filter(email__iexact=email).first()
     if existing is not None:
@@ -128,15 +126,11 @@ def _user(uid: str):
         return None
 
 
-def verify(uid: str, token: str, password: str):
-    """Activates the user the link was sent to, given the password they signed
-    up with: a link alone would activate whatever password was typed, maybe
-    by someone else. Returns them, or None when the link is wrong, expired or
-    used already, or the password is wrong."""
+def verify(uid: str, token: str):
+    """Activates the user the link was sent to. Returns them, or None when the
+    link is wrong, expired or used already."""
     user = _user(uid)
     if user is None or not verify_tokens.check_token(user, token):
-        return None
-    if not user.check_password(password):
         return None
     with transaction.atomic():
         # Locked: two clicks on the link activate them once.

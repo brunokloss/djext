@@ -30,8 +30,6 @@ class EmailIn(Schema):
 class VerifyIn(Schema):
     uid: str
     token: str
-    # The one they signed up with.
-    password: str
 
 
 class ResetIn(Schema):
@@ -145,15 +143,12 @@ def resend_verification(request: HttpRequest, response: HttpResponse, data: Emai
     "/auth/verify", response={204: None, 400: ErrorOut, 403: ErrorOut}, tags=["auth"]
 )
 def verify(request: HttpRequest, data: VerifyIn):
-    """Activates the account from the link in the email, given the password
-    it was signed up with. 400 when the link is wrong, expired or used
-    already, or the password is wrong. Log in afterwards."""
+    """Activates the account from the link in the email. 400 when the link is
+    wrong, expired or used already. Log in afterwards."""
     if answer := refused(request, settings.AUTH_SIGNUP, "Sign-up"):
         return answer
-    if services.verify(data.uid, data.token, data.password) is None:
-        return 400, {
-            "detail": "This link is invalid or has expired, or the password is wrong."
-        }
+    if services.verify(data.uid, data.token) is None:
+        return 400, {"detail": "This link is invalid or has expired."}
     return 204, None
 
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,41 +124,25 @@ export function SignupForm() {
   );
 }
 
-// A form, not a request on page load: mail scanners open links, and must
-// not use them up. It asks for the password the account was signed up with,
-// so someone who signed up with another person's email can't have it
-// confirmed for them. A dead link offers a new one.
+// A button, not a request on page load: mail scanners open links, and must
+// not use them up. Once confirmed it goes to the login. A dead link offers a
+// new one.
 export function VerifyEmail({ uid, token }: { uid: string; token: string }) {
-  const [state, verify, pending] = useActionState(
-    async (_previous: State, form: FormData): Promise<State> => {
-      const { error } = await api.POST("/api/auth/verify", {
-        body: { uid, token, password: String(form.get("password")) },
-      });
-      return error ? { error: error.detail } : { done: true };
-    },
-    {},
-  );
-  if (state.done)
-    return (
-      <>
-        <Done>Your email is confirmed. You can log in now.</Done>
-        <Link href="/login" className="text-center text-sm underline">
-          Log in
-        </Link>
-      </>
-    );
+  const router = useRouter();
+  const [state, verify, pending] = useActionState(async (): Promise<State> => {
+    const { error } = await api.POST("/api/auth/verify", {
+      body: { uid, token },
+    });
+    if (error) return { error: error.detail };
+    router.push("/login?verified=1");
+    return { done: true };
+  }, {});
 
   return (
     <>
       <form action={verify} className="flex flex-col gap-4">
-        <Field
-          id="password"
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-        />
         <Alert error={state.error} />
-        <Button type="submit" disabled={pending}>
+        <Button type="submit" disabled={pending || state.done}>
           {pending ? "Confirming…" : "Confirm my email"}
         </Button>
       </form>

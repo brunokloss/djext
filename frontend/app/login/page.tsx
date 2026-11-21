@@ -39,6 +39,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
 
   return (
     <AuthCard title="Log in" description="Welcome back">
+      {/* From /verify (modules/signup). */}
+      {params.verified === "1" && !error && (
+        <p role="status" className="text-sm text-muted-foreground">
+          Your email is confirmed. You can log in now.
+        </p>
+      )}
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
