@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Boxes, House, Shield } from "lucide-react";
+import { BookOpen, Boxes, House, NotebookPen, Shield } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
@@ -29,7 +29,11 @@ type Props = {
 
 // Pages of this app go through <Link>. Django's pages (API docs, admin) are
 // plain links: the Next router doesn't know them.
-const PAGES = [{ href: "/", label: "Home", icon: House }];
+const PAGES = [
+  { href: "/", label: "Home", icon: House },
+  // The example feature (backend/apps/note): delete with it.
+  { href: "/notes", label: "Notes", icon: NotebookPen },
+];
 
 export function AppSidebar({ name, email, adminHref }: Props) {
   const pathname = usePathname();

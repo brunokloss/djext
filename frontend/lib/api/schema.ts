@@ -256,6 +256,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Notes
+         * @description Your notes, newest first.
+         */
+        get: operations["apps_note_api_list_notes"];
+        put?: never;
+        /**
+         * Create Note
+         * @description Adds a note. Send an `Idempotency-Key` header to make retries safe.
+         */
+        post: operations["apps_note_api_create_note"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/notes/{note_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Note
+         * @description One of your notes (404 for anyone else's).
+         */
+        get: operations["apps_note_api_get_note"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Note
+         * @description Deletes one of your notes.
+         */
+        delete: operations["apps_note_api_delete_note"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Note
+         * @description Changes the fields you send.
+         */
+        patch: operations["apps_note_api_update_note"];
+        trace?: never;
+    };
+    "/api/notes/{note_id}/email": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Email Note
+         * @description Emails the note to you. With modules/mail it is queued and a worker sends it.
+         */
+        post: operations["apps_note_api_email_note"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ping": {
         parameters: {
             query?: never;
@@ -439,6 +511,45 @@ export interface components {
         NotFoundOut: {
             /** Detail */
             detail: string;
+        };
+        /** NoteIn */
+        NoteIn: {
+            /**
+             * Body
+             * @default
+             */
+            body: string;
+            /** Title */
+            title: string;
+        };
+        /** NoteOut */
+        NoteOut: {
+            /** Body */
+            body: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** NotePatch */
+        NotePatch: {
+            /** Body */
+            body?: string | null;
+            /** Title */
+            title?: string | null;
         };
         /** PingIn */
         PingIn: {
@@ -859,6 +970,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthDbOut"];
+                };
+            };
+        };
+    };
+    apps_note_api_list_notes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteOut"][];
+                };
+            };
+        };
+    };
+    apps_note_api_create_note: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A new random value (a UUID) per action. Retries of the same action send the same value and get the first response back. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteIn"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteOut"];
+                };
+            };
+        };
+    };
+    apps_note_api_get_note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundOut"];
+                };
+            };
+        };
+    };
+    apps_note_api_delete_note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundOut"];
+                };
+            };
+        };
+    };
+    apps_note_api_update_note: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotePatch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundOut"];
+                };
+            };
+        };
+    };
+    apps_note_api_email_note: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description A new random value (a UUID) per action. Retries of the same action send the same value and get the first response back. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotFoundOut"];
                 };
             };
         };

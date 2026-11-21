@@ -102,6 +102,8 @@ INSTALLED_APPS = [
     # Base apps (apps/), then features added on top (modules/).
     "apps.core",
     "apps.authd",
+    # An example feature to copy, then delete (apps/note/README.md).
+    "apps.note",
     # Before modules.cron: its admin re-skins this one's.
     "django_tasks_db",
     "modules.cron",
@@ -304,7 +306,7 @@ TASKS = {
 }
 # Modules whose `@scheduled` jobs the scheduler runs; add yours. The scheduler is
 # its own process: it only finds a job in a module that is listed here.
-CRON_TASK_MODULES = ["modules.cron.tasks"]
+CRON_TASK_MODULES = ["modules.cron.tasks", "apps.note.tasks"]
 # Create new jobs enabled (else an admin turns each on). Never changes a job
 # that already has a row.
 CRON_AUTO_ENABLE_NEW_TASKS = config(
@@ -419,3 +421,7 @@ SERVER_EMAIL = DEFAULT_FROM_EMAIL
 # Emails (their text too, with reset links) are deleted after this many days, daily
 # by modules/cron. 0 keeps them.
 EMAIL_RETENTION_DAYS = config("EMAIL_RETENTION_DAYS", default=30, cast=int)
+
+# apps/note (the example feature): a daily job deletes the notes untouched
+# for this many days. 0 keeps them.
+NOTE_RETENTION_DAYS = config("NOTE_RETENTION_DAYS", default=0, cast=int)

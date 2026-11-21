@@ -11,6 +11,7 @@ NO_BODY = {
     "POST /api/auth/logout",
     "POST /api/debug/error",
     "POST /api/auth/bearer-key",
+    "POST /api/notes/{note_id}/email",
 }
 
 
