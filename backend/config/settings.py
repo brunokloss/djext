@@ -304,9 +304,8 @@ TASKS = {
         "QUEUES": ["default", "scheduled_tasks"],
     }
 }
-# Modules whose `@scheduled` jobs the scheduler runs; add yours. The scheduler is
-# its own process: it only finds a job in a module that is listed here.
-CRON_TASK_MODULES = ["modules.cron.tasks", "apps.note.tasks"]
+# The scheduler runs the `@scheduled` jobs of every installed app's `jobs.py`
+# (modules/cron/registry.py).
 # Create new jobs enabled (else an admin turns each on). Never changes a job
 # that already has a row.
 CRON_AUTO_ENABLE_NEW_TASKS = config(

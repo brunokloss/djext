@@ -226,7 +226,7 @@ class CronScheduleAdmin(admin.ModelAdmin):
 
     @admin.display(description="Name", ordering="name")
     def job(self, obj):
-        """The module and function (`modules.cron.tasks.audit_purge`), not only the
+        """The module and function (`modules.audit.jobs.audit_purge`), not only the
         function: two modules can have jobs with the same function name."""
         entry = SCHEDULE_REGISTRY.get(obj.name)
         if entry is None:

@@ -27,7 +27,6 @@ Run tracking: `cron_tick` and the admin's "Schedule now" create a CronRun row
 linking each enqueue to the DBTaskResult it produced.
 """
 
-import importlib
 import logging
 import signal
 import threading
@@ -40,6 +39,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import DatabaseError, connection
 from django.tasks import Task
 from django.utils import timezone
+from django.utils.module_loading import autodiscover_modules
 
 # NOTE: models are NOT imported here. This module is imported very early (task
 # modules import it at their top, loaded during app startup), and importing a
@@ -58,19 +58,17 @@ STARTS_ENABLED: dict[str, bool] = {}
 
 
 def load_task_modules():
-    """Import every module named in `settings.CRON_TASK_MODULES`.
+    """Import the `jobs` module of every installed app (`modules/audit/jobs.py`,
+    `apps/<yours>/jobs.py`), like the admin finds each `admin.py`.
 
     Importing a module runs its `@scheduled` decorators, which is what populates
-    `SCHEDULE_REGISTRY`. Keeping the list in settings (rather than importing a
-    fixed module) is how this app stays decoupled from any particular project app
-    — the project declares where its scheduled functions live, e.g.
-
-        CRON_TASK_MODULES = ["core.tasks"]
+    `SCHEDULE_REGISTRY`. So each module and app declares its own jobs, removing
+    one takes its jobs with it, and without modules/cron no `jobs.py` is ever
+    imported.
 
     Idempotent: re-importing an already-loaded module is a no-op.
     """
-    for module_path in getattr(settings, "CRON_TASK_MODULES", []):
-        importlib.import_module(module_path)
+    autodiscover_modules("jobs")
 
 
 def sync_schedules():
