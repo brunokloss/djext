@@ -184,7 +184,10 @@ class VerifyTest(SignupTestCase):
         self.assertEqual(response.status_code, 200)
         # Opened again: confirmed already, nothing changes.
         self.assertEqual(self.verify().status_code, 200)
-        self.assertEqual(self.verify(token="1-abc").status_code, 200)
+        # The uid is the public id: without the token, not even the email.
+        response = self.verify(token="1-abc")
+        self.assertEqual(response.status_code, 400)
+        self.assertNotIn("new@example.com", response.content.decode())
 
     def test_a_wrong_token_or_uid_is_refused(self):
         self.assertEqual(self.verify(token="1-abc").status_code, 400)
@@ -193,7 +196,6 @@ class VerifyTest(SignupTestCase):
         self.assertFalse(self.user.is_active)
 
     def test_a_user_blocked_after_verifying_stays_blocked(self):
-        # Blocking sets is_active back to what the link was made with.
         self.verify()
         User.objects.filter(pk=self.user.pk).update(is_active=False)
         self.assertEqual(self.verify().status_code, 400)

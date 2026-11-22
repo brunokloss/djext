@@ -241,7 +241,7 @@ AUTH_PASSWORD = config("AUTH_PASSWORD", default=True, cast=bool)
 # creates the accounts in the admin. AUTH_SIGNUP lets anyone sign up with
 # email and password (/signup), the account inactive until they open the link
 # sent by email. AUTH_PASSWORD_RESET sends a link to choose a new password
-# (/forgot-password). The links work once, for PASSWORD_RESET_TIMEOUT seconds.
+# (/forgot-password). The links expire after PASSWORD_RESET_TIMEOUT seconds.
 AUTH_SIGNUP = config("AUTH_SIGNUP", default=False, cast=bool)
 AUTH_PASSWORD_RESET = config("AUTH_PASSWORD_RESET", default=False, cast=bool)
 PASSWORD_RESET_TIMEOUT = 60 * 60

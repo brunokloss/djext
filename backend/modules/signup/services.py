@@ -149,25 +149,22 @@ def _user(uid: str):
 
 
 def verify(uid: str, token: str):
-    """Activates the user the link was sent to. Returns them, also when they
-    were confirmed already (the link opened again: a second device, a mail
-    scanner first), or None when the link is wrong or expired."""
+    """Activates the user the link was sent to. Returns them, also when the
+    link is opened again (a second device, a mail scanner first), or None
+    when it is wrong or expired, or the user was blocked. Only who has the
+    token gets the user: the uid is their public id, not a secret."""
     user = _user(uid)
-    if user is None:
+    if user is None or not verify_tokens.check_token(user, token):
         return None
-    if not verify_tokens.check_token(user, token):
-        # Only who has the uid (from the email) learns it is confirmed.
-        confirmed = Signup.objects.filter(user=user, verified_at__isnull=False)
-        return user if user.is_active and confirmed.exists() else None
     with transaction.atomic():
         # Locked: two clicks on the link activate them once.
-        signup = (
-            Signup.objects.select_for_update()
-            .filter(user=user, verified_at__isnull=True)
-            .first()
-        )
-        if signup is None or user.is_active:
+        signup = Signup.objects.select_for_update().filter(user=user).first()
+        if signup is None:
             return None
+        if signup.verified_at is not None:
+            # Confirmed already (or activated by the team): blocked since,
+            # the link doesn't let them back in.
+            return user if user.is_active else None
         signup.verified_at = timezone.now()
         signup.save(update_fields=["verified_at", "updated_at"])
         user.is_active = True
