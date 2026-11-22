@@ -65,7 +65,9 @@ export interface paths {
         /**
          * Login View
          * @description Starts a session. Login rotates the CSRF token: read the cookie again.
-         *     429 after too many failures (Retry-After says when to try again).
+         *     403 with the right password for an account that can't log in yet (its
+         *     email is not confirmed). 429 after too many failures (Retry-After says
+         *     when to try again).
          */
         post: operations["apps_authd_api_auth_login_view"];
         delete?: never;
@@ -88,6 +90,70 @@ export interface paths {
          * @description Ends the session (204 even when not logged in).
          */
         post: operations["apps_authd_api_auth_logout_view"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Forgot Password
+         * @description Sends a link to choose a new password. 204 whether the email has an
+         *     account or not.
+         */
+        post: operations["modules_signup_api_forgot_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reset Password
+         * @description Sets the new password from the link in the email and ends the user's
+         *     sessions. 400 when the password is too weak, 410 when the link is wrong,
+         *     expired or used already.
+         */
+        post: operations["modules_signup_api_reset_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/password/reset/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Reset Link
+         * @description 204 when the reset link still works, so the page asks for the new
+         *     password only then; 410 when it is wrong, expired or used already.
+         */
+        post: operations["modules_signup_api_check_reset_link"];
         delete?: never;
         options?: never;
         head?: never;
@@ -155,6 +221,70 @@ export interface paths {
          * @description Logs that session out. Ending the current one is a logout.
          */
         delete: operations["modules_session_api_end_session"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/signup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Signup
+         * @description Creates an account, inactive until the email is verified: the link goes
+         *     by email. 204 whether the email has an account or not. 400 when the
+         *     password is too weak (AUTH_PASSWORD_VALIDATORS).
+         */
+        post: operations["modules_signup_api_signup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Verify
+         * @description Activates the account from the link in the email, or says it was
+         *     already. 400 when the link is wrong or expired. Log in afterwards.
+         */
+        post: operations["modules_signup_api_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/verify/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resend Verification
+         * @description Sends the verification link again, if the email is waiting for one.
+         *     204 either way.
+         */
+        post: operations["modules_signup_api_resend_verification"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -404,6 +534,16 @@ export interface components {
              */
             rotated_at: string;
         };
+        /** ConfirmedOut */
+        ConfirmedOut: {
+            /** Email */
+            email: string;
+        };
+        /** EmailIn */
+        EmailIn: {
+            /** Email */
+            email: string;
+        };
         /** ErrorOut */
         ErrorOut: {
             /** Detail */
@@ -435,6 +575,13 @@ export interface components {
              */
             time: string;
         };
+        /** LinkIn */
+        LinkIn: {
+            /** Token */
+            token: string;
+            /** Uid */
+            uid: string;
+        };
         /** LoginIn */
         LoginIn: {
             /** Email */
@@ -455,8 +602,12 @@ export interface components {
         LoginOptionsOut: {
             /** Password */
             password: boolean;
+            /** Password Reset */
+            password_reset: boolean;
             /** Providers */
             providers: components["schemas"]["LoginOptionOut"][];
+            /** Signup */
+            signup: boolean;
         };
         /**
          * MeOut
@@ -564,6 +715,15 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** ResetIn */
+        ResetIn: {
+            /** Password */
+            password: string;
+            /** Token */
+            token: string;
+            /** Uid */
+            uid: string;
+        };
         /** SessionOut */
         SessionOut: {
             /** Current */
@@ -579,6 +739,23 @@ export interface components {
             logged_in_at: string | null;
             /** User Agent */
             user_agent: string;
+        };
+        /** SignupIn */
+        SignupIn: {
+            /** Email */
+            email: string;
+            /**
+             * First Name
+             * @default
+             */
+            first_name: string;
+            /**
+             * Last Name
+             * @default
+             */
+            last_name: string;
+            /** Password */
+            password: string;
         };
         /** UserOut */
         UserOut: {
@@ -597,6 +774,13 @@ export interface components {
             last_name: string;
             /** Phone Number */
             phone_number: string;
+        };
+        /** VerifyIn */
+        VerifyIn: {
+            /** Token */
+            token: string;
+            /** Uid */
+            uid: string;
         };
     };
     responses: never;
@@ -770,6 +954,146 @@ export interface operations {
             };
         };
     };
+    modules_signup_api_forgot_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_reset_password: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResetIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmedOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_check_reset_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     apps_authd_api_auth_list_login_options: {
         parameters: {
             query?: never;
@@ -855,6 +1179,146 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotFoundOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_signup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignupIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyIn"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConfirmedOut"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_resend_verification: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };

@@ -10,3 +10,10 @@ export const getCurrentUser = cache(async (): Promise<Me | null> => {
   if (!data) throw new Error(`GET /api/users/me failed: ${response.status}`);
   return data;
 });
+
+// The ways in that are on (/api/auth/providers): the password, the providers
+// and the self-service pages (a page of one that is off answers 404).
+export const getLoginOptions = cache(async () => {
+  const { data } = await (await serverApi()).GET("/api/auth/providers");
+  return data;
+});

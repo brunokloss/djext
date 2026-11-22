@@ -105,8 +105,18 @@ class LoginOptionsTest(TestCase):
         response = self.client.get("/api/auth/providers")
         self.assertEqual(response["Cache-Control"], "public, max-age=300")
 
+    # Not what the local .env turns on.
+    @override_settings(AUTH_SIGNUP=False, AUTH_PASSWORD_RESET=False)
     def test_only_the_password_without_modules(self):
-        self.assertEqual(self.options(), {"password": True, "providers": []})
+        self.assertEqual(
+            self.options(),
+            {
+                "password": True,
+                "providers": [],
+                "signup": False,
+                "password_reset": False,
+            },
+        )
 
     @override_settings(AUTH_PASSWORD=False)
     def test_password_off(self):

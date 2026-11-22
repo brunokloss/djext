@@ -124,6 +124,8 @@ INSTALLED_APPS = [
     "modules.queue",
     "modules.cache",
     "modules.mail",
+    # Off until AUTH_SIGNUP or AUTH_PASSWORD_RESET is on (below).
+    "modules.signup",
 ]
 
 MIDDLEWARE = [
@@ -234,6 +236,20 @@ LOGIN_URL = "/login"
 # Log in with email and password (/api/auth/login, and the admin's own form
 # when it is opened directly on Django). False leaves only the providers below.
 AUTH_PASSWORD = config("AUTH_PASSWORD", default=True, cast=bool)
+
+# Self-service accounts (modules/signup), both off: djext is B2B, the team
+# creates the accounts in the admin. AUTH_SIGNUP lets anyone sign up with
+# email and password (/signup), the account inactive until they open the link
+# sent by email. AUTH_PASSWORD_RESET sends a link to choose a new password
+# (/forgot-password). The links expire after PASSWORD_RESET_TIMEOUT seconds.
+AUTH_SIGNUP = config("AUTH_SIGNUP", default=False, cast=bool)
+AUTH_PASSWORD_RESET = config("AUTH_PASSWORD_RESET", default=False, cast=bool)
+PASSWORD_RESET_TIMEOUT = 60 * 60
+# Emails those send, per address and per IP, as in the login limits above.
+# The address's limit counts the confirmation links and the resets apart.
+# Past it they answer 429 and send nothing.
+AUTH_MAIL_THROTTLE_EMAIL = config("AUTH_MAIL_THROTTLE_EMAIL", default="3/h")
+AUTH_MAIL_THROTTLE_IP = config("AUTH_MAIL_THROTTLE_IP", default="20/h")
 
 # Log in with a provider (modules/oauth). Each one is off while its client
 # id is empty. Providers redirect back to /api/auth/<name>/callback on the

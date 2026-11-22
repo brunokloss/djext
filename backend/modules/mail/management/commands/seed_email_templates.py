@@ -1,12 +1,17 @@
 from django.core.management.base import BaseCommand
 from post_office.models import EmailTemplate
 
+# The plain text ("content") is rendered with autoescape off, like any text
+# that isn't HTML: otherwise a & in a link or a name becomes &amp;.
 TEMPLATES = [
     {
         "name": "welcome",
         "description": "Example: a greeting with a button. Edit it in the admin.",
         "subject": "Welcome, {{ name }}!",
-        "content": "Hi {{ name }},\n\nWelcome aboard. Open {{ url }} to get started.\n",
+        "content": (
+            "{% autoescape off %}Hi {{ name }},\n\nWelcome aboard. Open {{ url }} "
+            "to get started.\n{% endautoescape %}"
+        ),
         "html_content": (
             '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
             "<h1>Welcome, {{ name }}!</h1>"
@@ -17,27 +22,12 @@ TEMPLATES = [
         ),
     },
     {
-        "name": "password_reset",
-        "description": "Example: a link that expires. Edit it in the admin.",
-        "subject": "Reset your password",
-        "content": (
-            "Hi {{ name }},\n\nReset it here: {{ url }}\nThe link expires in 1 hour.\n"
-        ),
-        "html_content": (
-            '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
-            "<h1>Reset your password</h1>"
-            "<p>Hi {{ name }}, use the button below. It expires in 1 hour.</p>"
-            '<p><a href="{{ url }}" style="display:inline-block;padding:10px 18px;'
-            'background:#dc2626;color:#fff;border-radius:6px;text-decoration:none">'
-            "Choose a new password</a></p></div>"
-        ),
-    },
-    {
         "name": "invoice",
         "description": "Example: sent with the invoice attached.",
         "subject": "Invoice {{ number }}",
         "content": (
-            "Hi {{ name }},\n\nInvoice {{ number }} is attached. Total: {{ total }}.\n"
+            "{% autoescape off %}Hi {{ name }},\n\nInvoice {{ number }} is attached. "
+            "Total: {{ total }}.\n{% endautoescape %}"
         ),
         "html_content": (
             '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'

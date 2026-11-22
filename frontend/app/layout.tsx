@@ -13,8 +13,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Each page names itself: "Log in · <project>".
 export const metadata: Metadata = {
-  title: projectName,
+  title: { default: projectName, template: `%s · ${projectName}` },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,3 +1,4 @@
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.http import HttpRequest, HttpResponse
@@ -8,7 +9,11 @@ from ninja.decorators import decorate_view
 from ninja.throttling import BaseThrottle
 from ninja.utils import check_csrf
 
-from modules.signals.signals import login_options_requested, login_throttled
+from modules.signals.signals import (
+    inactive_login,
+    login_options_requested,
+    login_throttled,
+)
 from modules.throttle.throttles import FailureLimit, hashed
 
 from .schemas import ErrorOut, UserOut
@@ -78,6 +83,11 @@ def limited_authenticate(sender, request: HttpRequest, email: str, password: str
         counted.append((name, limit, ident, stamp))
     user = authenticate(request, email=email, password=password)
     if user is None:
+        # The right password for an inactive user (one still confirming
+        # their email) isn't a failure either: they would end up locked out.
+        if getattr(request, "auth_inactive_user", None):
+            for _, limit, ident, stamp in counted:
+                limit.forget(ident, stamp)
         return None, None
     # The email's failures all go; the IP's stay (only this try is taken
     # back), or one account of its own would let an attacker reset them.
@@ -96,7 +106,9 @@ def limited_authenticate(sender, request: HttpRequest, email: str, password: str
 )
 def login_view(request: HttpRequest, response: HttpResponse, data: LoginIn):
     """Starts a session. Login rotates the CSRF token: read the cookie again.
-    429 after too many failures (Retry-After says when to try again)."""
+    403 with the right password for an account that can't log in yet (its
+    email is not confirmed). 429 after too many failures (Retry-After says
+    when to try again)."""
     if check_csrf(request):
         return 403, {"detail": "CSRF check failed"}
     if not settings.AUTH_PASSWORD:
@@ -107,6 +119,13 @@ def login_view(request: HttpRequest, response: HttpResponse, data: LoginIn):
         response["Retry-After"] = str(wait)
         return 429, {"detail": "Too many failed logins. Try again later."}
     if user is None:
+        # The right password, but a module knows why the user is inactive.
+        if inactive := getattr(request, "auth_inactive_user", None):
+            for _, detail in inactive_login.send(
+                login_view, request=request, user=inactive
+            ):
+                if detail:
+                    return 403, {"detail": detail}
         return 401, {"detail": "Invalid email or password"}
     login(request, user)
     return user
@@ -125,6 +144,10 @@ class LoginOptionsOut(Schema):
     password: bool
     # Other ways to log in, in the order the page shows them.
     providers: list[LoginOptionOut]
+    # Self-service accounts (modules/signup): the links to /signup and
+    # /forgot-password.
+    signup: bool
+    password_reset: bool
 
 
 # Public and the same for everyone, and settings only change when the app
@@ -136,9 +159,13 @@ def list_login_options(request: HttpRequest):
     """Which ways to log in are on, so the login page only shows those: the
     password, and what the modules return (modules/signals/signals.py)."""
     sent = login_options_requested.send(list_login_options)
+    # Both need the password, and are off when modules/signup is removed.
+    signup = apps.is_installed("modules.signup") and settings.AUTH_PASSWORD
     return {
         "password": settings.AUTH_PASSWORD,
         "providers": [option for _, options in sent for option in options],
+        "signup": signup and settings.AUTH_SIGNUP,
+        "password_reset": signup and settings.AUTH_PASSWORD_RESET,
     }
 
 
