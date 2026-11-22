@@ -1,18 +1,11 @@
 import { notFound } from "next/navigation";
 import { ForgotPasswordForm } from "@/components/account-forms";
-import { AuthCard } from "@/components/auth-card";
 import { getLoginOptions } from "@/lib/auth";
 
 export const instant = false;
 
+// The form brings its own AuthCard: the title changes once the link is sent.
 export default async function ForgotPasswordPage() {
   if (!(await getLoginOptions())?.password_reset) notFound();
-  return (
-    <AuthCard
-      title="Forgot your password?"
-      description="We will email you a link to choose a new one"
-    >
-      <ForgotPasswordForm />
-    </AuthCard>
-  );
+  return <ForgotPasswordForm />;
 }
