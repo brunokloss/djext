@@ -68,7 +68,8 @@ def mail_wait(request: HttpRequest, email: str, purpose: str) -> int | None:
     the try in counts it. The IP's first: a try it refuses must not use up
     the email's (someone over their own limit would lock the owner out).
     The email's is per `purpose` ("signup" for the confirmation links,
-    "reset" for the password): confirming must not use up the first reset."""
+    "reset" for the password, "login" for the login links): confirming must
+    not use up the first reset."""
     # Keyed with SECRET_KEY: the cache monitor lists the keys, and an email
     # must not be readable there.
     email = services.normalize_email(email)
