@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.contrib.auth import login
+from django.contrib.auth.signals import user_login_failed
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
 from django.utils.crypto import salted_hmac
@@ -261,6 +262,13 @@ def login_with_link(request: HttpRequest, data: LinkIn):
     ):
         return answer
     if (user := services.login_link_user(data.uid, data.token)) is None:
+        # A failed login, as modules/oauth sends for its failures, so whoever
+        # listens (the auth log, the audit log) sees tokens being tried.
+        user_login_failed.send(
+            sender=__name__,
+            credentials={"provider": "login_link", "reason": "dead_link"},
+            request=request,
+        )
         return 410, DEAD_LINK
     # As modules/oauth: login() needs a backend when it didn't go through
     # authenticate(), and modules/audit logs the method.

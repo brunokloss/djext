@@ -3,7 +3,7 @@ from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
 from django.contrib.auth import get_user_model
-from django.contrib.auth.signals import user_logged_in
+from django.contrib.auth.signals import user_logged_in, user_login_failed
 from django.test import Client, TestCase, override_settings
 from post_office.models import Email, EmailTemplate
 
@@ -487,6 +487,17 @@ class LoginLinkTest(SignupTestCase):
         self.ask()
         token = link(Email.objects.get())["token"]
         self.assertFalse(reset_tokens.check_token(self.user, token))
+
+    def test_a_dead_link_is_a_failed_login(self):
+        failures = []
+
+        def on_failure(credentials, **kwargs):
+            failures.append(credentials)
+
+        user_login_failed.connect(on_failure)
+        self.addCleanup(user_login_failed.disconnect, on_failure)
+        self.use({"uid": self.user.username, "token": "x"})
+        self.assertEqual(failures, [{"provider": "login_link", "reason": "dead_link"}])
 
     def test_the_same_answer_for_any_email(self):
         User.objects.create_user(email="off@example.com", is_active=False)
