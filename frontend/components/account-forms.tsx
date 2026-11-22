@@ -245,7 +245,7 @@ export function SignupForm() {
           id="name"
           autoFocus
           label="Name"
-          autoComplete="given-name"
+          autoComplete="name"
           value={values.name}
           onChange={(e) => setValues({ ...values, name: e.target.value })}
         />
@@ -278,23 +278,27 @@ export function SignupForm() {
 
 // Opening the link confirms the account and goes to the login, also when it
 // was confirmed already (the link opened again). A dead link offers a new one.
-export function VerifyEmail({ uid, token }: { uid: string; token: string }) {
+export function VerifyEmail({
+  link,
+}: {
+  link?: { uid: string; token: string };
+}) {
   const router = useRouter();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState(
+    link ? undefined : "This link is incomplete.",
+  );
   // Once: React runs effects twice in development, and a second post would
   // find the link used.
   const sent = useRef(false);
   useEffect(() => {
-    if (sent.current) return;
+    if (sent.current || !link) return;
     sent.current = true;
-    api
-      .POST("/api/auth/verify", { body: { uid, token } })
-      .then(({ data, error }) => {
-        if (error) return setError(error.detail);
-        rememberLoginEmail(data.email);
-        router.replace("/login?verified=1");
-      });
-  }, [uid, token, router]);
+    api.POST("/api/auth/verify", { body: link }).then(({ data, error }) => {
+      if (error) return setError(error.detail);
+      rememberLoginEmail(data.email);
+      router.replace("/login?verified=1");
+    });
+  }, [link, router]);
 
   if (!error)
     return (
@@ -307,7 +311,7 @@ export function VerifyEmail({ uid, token }: { uid: string; token: string }) {
       <Alert error={error} />
       <EmailLinkForm
         path="/api/auth/verify/resend"
-        button="Send a new link"
+        button="Resend the confirmation link"
         sent={(email) =>
           `If ${email} is waiting for its confirmation, a new link is on its way.`
         }
@@ -436,7 +440,7 @@ export function ResetPasswordForm({
         <Alert error="This link is invalid, expired or used already." />
         <EmailLinkForm
           path="/api/auth/password/forgot"
-          button="Send a new link"
+          button="Send a new reset link"
           sent={(email) =>
             `If ${email} has an account, a link to choose a new password is on its way.`
           }

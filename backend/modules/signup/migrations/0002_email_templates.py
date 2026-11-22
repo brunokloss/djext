@@ -11,14 +11,17 @@ TEMPLATES = [
         "description": "Sign-up: the link that activates the account (modules/signup).",
         "subject": "Confirm your email",
         "content": (
-            "{% autoescape off %}Hi {{ name }},\n\nConfirm your email to activate "
-            "your account: {{ url }}\nThe link expires in 1 hour.\n{% endautoescape %}"
+            "{% autoescape off %}Hi{% if name %} {{ name }}{% endif %},\n\nConfirm "
+            "your email to start using your account: {{ url }}\nThe link expires "
+            "in 1 hour. If you didn't sign up, ignore this email.\n"
+            "{% endautoescape %}"
         ),
         "html_content": (
             '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
             "<h1>Confirm your email</h1>"
-            "<p>Hi {{ name }}, use the button below to activate your account. "
-            "It expires in 1 hour.</p>"
+            "<p>Hi{% if name %} {{ name }}{% endif %}, use the button below to "
+            "start using your account. It expires in 1 hour.</p>"
+            "<p>If you didn't sign up, ignore this email.</p>"
             '<p><a href="{{ url }}" style="display:inline-block;padding:10px 18px;'
             'background:#2563eb;color:#fff;border-radius:6px;text-decoration:none">'
             "Confirm my email</a></p></div>"
@@ -29,16 +32,21 @@ TEMPLATES = [
         "description": "Password reset: a link that expires (modules/signup).",
         "subject": "Reset your password",
         "content": (
-            "{% autoescape off %}Hi {{ name }},\n\nReset it here: {{ url }}\n"
-            "The link expires in 1 hour.\n{% endautoescape %}"
+            "{% autoescape off %}Hi{% if name %} {{ name }}{% endif %},\n\nSomeone "
+            "asked to reset the password of your account. Choose a new one: "
+            "{{ url }}\nThe link expires in 1 hour. If it wasn't you, ignore "
+            "this email: your password stays the same.\n{% endautoescape %}"
         ),
         "html_content": (
             '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
             "<h1>Reset your password</h1>"
-            "<p>Hi {{ name }}, use the button below. It expires in 1 hour.</p>"
+            "<p>Hi{% if name %} {{ name }}{% endif %}, someone asked to reset the "
+            "password of your account. The button below expires in 1 hour.</p>"
             '<p><a href="{{ url }}" style="display:inline-block;padding:10px 18px;'
             'background:#dc2626;color:#fff;border-radius:6px;text-decoration:none">'
-            "Choose a new password</a></p></div>"
+            "Choose a new password</a></p>"
+            "<p>If it wasn't you, ignore this email: your password stays the "
+            "same.</p></div>"
         ),
     },
 ]

@@ -8,7 +8,7 @@ TEMPLATE = {
     "description": "Sign-up with an email that has an account (modules/signup).",
     "subject": "You already have an account",
     "content": (
-        "{% autoescape off %}Hi {{ name }},\n\nSomeone tried to sign up with "
+        "{% autoescape off %}Hi{% if name %} {{ name }}{% endif %},\n\nSomeone tried to sign up with "
         "this email, but it already has an account. Log in: {{ login_url }}\n"
         "{% if reset_url %}Forgot your password? {{ reset_url }}\n{% endif %}"
         "If it wasn't you, ignore this email.\n{% endautoescape %}"
@@ -16,7 +16,7 @@ TEMPLATE = {
     "html_content": (
         '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
         "<h1>You already have an account</h1>"
-        "<p>Hi {{ name }}, someone tried to sign up with this email, but it "
+        "<p>Hi{% if name %} {{ name }}{% endif %}, someone tried to sign up with this email, but it "
         "already has an account.</p>"
         '<p><a href="{{ login_url }}" style="display:inline-block;padding:10px 18px;'
         'background:#2563eb;color:#fff;border-radius:6px;text-decoration:none">'

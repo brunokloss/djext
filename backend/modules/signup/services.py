@@ -44,7 +44,7 @@ def _send(site: str, user, template: str, path: str, token: str) -> None:
     mail.send(
         user.email,
         template=template,
-        context={"name": user.get_short_name(), "url": url},
+        context={"name": user.first_name, "url": url},
         render_on_delivery=True,
     )
 
@@ -56,7 +56,7 @@ def _send_account_exists(site: str, user) -> None:
         user.email,
         template=EXISTS_TEMPLATE,
         context={
-            "name": user.get_short_name(),
+            "name": user.first_name,
             "login_url": f"{site}/login",
             "reset_url": reset,
         },

@@ -14,10 +14,14 @@ export default async function VerifyPage({
 }: PageProps<"/verify">) {
   const { uid, token } = await searchParams;
   if (!(await getLoginOptions())?.signup) notFound();
-  if (typeof uid !== "string" || typeof token !== "string") notFound();
+  // A link cut short by the mail app still gets the card, to ask for a new one.
+  const link =
+    typeof uid === "string" && typeof token === "string"
+      ? { uid, token }
+      : undefined;
   return (
     <AuthCard title="Confirm your email">
-      <VerifyEmail uid={uid} token={token} />
+      <VerifyEmail link={link} />
     </AuthCard>
   );
 }

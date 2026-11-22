@@ -49,6 +49,7 @@ class SignupTest(SignupTestCase):
         self.assertEqual(email.to, ["new@example.com"])
         self.assertEqual(email.template.name, "verify_email")
         self.assertEqual(email.context["name"], "New")
+        self.assertIn("Hi New,", email.email_message().body)
         self.assertTrue(
             email.context["url"].startswith("http://localhost:3000/verify?")
         )
@@ -252,6 +253,8 @@ class PasswordResetTest(SignupTestCase):
         self.assertEqual(self.forgot().status_code, 204)
         email = Email.objects.get()
         self.assertEqual(email.template.name, "password_reset")
+        # No name: no email in its place.
+        self.assertTrue(email.email_message().body.startswith("Hi,"))
         found = link(email)
         self.assertEqual(found.pop("path"), "/reset-password")
         self.assertEqual(self.post("password/reset/check", **found).status_code, 204)
