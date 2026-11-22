@@ -81,7 +81,7 @@ class SignupTest(SignupTestCase):
         for found in (first, second):
             del found["path"]
         self.assertEqual(self.post("verify", **first).status_code, 400)
-        self.assertEqual(self.post("verify", **second).status_code, 204)
+        self.assertEqual(self.post("verify", **second).status_code, 200)
         self.assertTrue(User.objects.get().check_password(PASSWORD))
 
     def test_a_bad_email_or_a_long_name_is_refused(self):
@@ -133,7 +133,7 @@ class SignupTest(SignupTestCase):
             self.assertIn("We sent a new link", response.json()["detail"])
             fresh = link(Email.objects.latest("id"))
             del fresh["path"]
-            self.assertEqual(self.post("verify", **fresh).status_code, 204)
+            self.assertEqual(self.post("verify", **fresh).status_code, 200)
         response = self.post("login", email="new@example.com", password=PASSWORD)
         self.assertEqual(response.status_code, 200)
 
@@ -162,14 +162,17 @@ class VerifyTest(SignupTestCase):
 
     def test_activates_the_user_once(self):
         self.assertEqual(self.path, "/verify")
-        self.assertEqual(self.verify().status_code, 204)
+        response = self.verify()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"email": "new@example.com"})
         self.user.refresh_from_db()
         self.assertTrue(self.user.is_active)
         self.assertIsNotNone(self.user.signup.verified_at)
         response = self.post("login", email="new@example.com", password=PASSWORD)
         self.assertEqual(response.status_code, 200)
-        # The link was used.
-        self.assertEqual(self.verify().status_code, 400)
+        # Opened again: confirmed already, nothing changes.
+        self.assertEqual(self.verify().status_code, 200)
+        self.assertEqual(self.verify(token="1-abc").status_code, 200)
 
     def test_a_wrong_token_or_uid_is_refused(self):
         self.assertEqual(self.verify(token="1-abc").status_code, 400)

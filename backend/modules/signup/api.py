@@ -16,6 +16,11 @@ class ErrorOut(Schema):
     detail: str
 
 
+class ConfirmedOut(Schema):
+    # For the login page to fill in.
+    email: str
+
+
 class SignupIn(Schema):
     email: str
     password: str
@@ -144,16 +149,18 @@ def resend_verification(request: HttpRequest, response: HttpResponse, data: Emai
 
 
 @router.post(
-    "/auth/verify", response={204: None, 400: ErrorOut, 403: ErrorOut}, tags=["auth"]
+    "/auth/verify",
+    response={200: ConfirmedOut, 400: ErrorOut, 403: ErrorOut},
+    tags=["auth"],
 )
 def verify(request: HttpRequest, data: VerifyIn):
-    """Activates the account from the link in the email. 400 when the link is
-    wrong, expired or used already. Log in afterwards."""
+    """Activates the account from the link in the email, or says it was
+    already. 400 when the link is wrong or expired. Log in afterwards."""
     if answer := refused(request, settings.AUTH_SIGNUP, "Sign-up"):
         return answer
-    if services.verify(data.uid, data.token) is None:
+    if (user := services.verify(data.uid, data.token)) is None:
         return 400, {"detail": "This link is invalid or has expired."}
-    return 204, None
+    return 200, {"email": user.email}
 
 
 @router.post("/auth/password/forgot", response=MAIL_RESPONSES, tags=["auth"])

@@ -127,11 +127,16 @@ def _user(uid: str):
 
 
 def verify(uid: str, token: str):
-    """Activates the user the link was sent to. Returns them, or None when the
-    link is wrong, expired or used already."""
+    """Activates the user the link was sent to. Returns them, also when they
+    were confirmed already (the link opened again: a second device, a mail
+    scanner first), or None when the link is wrong or expired."""
     user = _user(uid)
-    if user is None or not verify_tokens.check_token(user, token):
+    if user is None:
         return None
+    if not verify_tokens.check_token(user, token):
+        # Only who has the uid (from the email) learns it is confirmed.
+        confirmed = Signup.objects.filter(user=user, verified_at__isnull=False)
+        return user if user.is_active and confirmed.exists() else None
     with transaction.atomic():
         # Locked: two clicks on the link activate them once.
         signup = (

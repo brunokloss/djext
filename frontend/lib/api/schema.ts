@@ -238,8 +238,8 @@ export interface paths {
         put?: never;
         /**
          * Verify
-         * @description Activates the account from the link in the email. 400 when the link is
-         *     wrong, expired or used already. Log in afterwards.
+         * @description Activates the account from the link in the email, or says it was
+         *     already. 400 when the link is wrong or expired. Log in afterwards.
          */
         post: operations["modules_signup_api_verify"];
         delete?: never;
@@ -512,6 +512,11 @@ export interface components {
              * Format: date-time
              */
             rotated_at: string;
+        };
+        /** ConfirmedOut */
+        ConfirmedOut: {
+            /** Email */
+            email: string;
         };
         /** EmailIn */
         EmailIn: {
@@ -1161,12 +1166,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description No Content */
-            204: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ConfirmedOut"];
+                };
             };
             /** @description Bad Request */
             400: {

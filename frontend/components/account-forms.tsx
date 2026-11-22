@@ -163,8 +163,8 @@ export function SignupForm() {
   );
 }
 
-// Opening the link confirms the account and goes to the login. A dead link
-// offers a new one.
+// Opening the link confirms the account and goes to the login, also when it
+// was confirmed already (the link opened again). A dead link offers a new one.
 export function VerifyEmail({ uid, token }: { uid: string; token: string }) {
   const router = useRouter();
   const [error, setError] = useState<string>();
@@ -189,15 +189,14 @@ export function VerifyEmail({ uid, token }: { uid: string; token: string }) {
   return (
     <>
       <Alert error={error} />
-      {error && (
-        <EmailLinkForm
-          path="/api/auth/verify/resend"
-          button="Send a new link"
-          sent={(email) =>
-            `If ${email} is waiting for its confirmation, a new link is on its way.`
-          }
-        />
-      )}
+      <EmailLinkForm
+        path="/api/auth/verify/resend"
+        button="Send a new link"
+        sent={(email) =>
+          `If ${email} is waiting for its confirmation, a new link is on its way.`
+        }
+      />
+      <BackToLogin />
     </>
   );
 }
