@@ -25,12 +25,9 @@ def link(email: Email) -> dict:
     return {"path": url.path, "uid": query["uid"][0], "token": query["token"][0]}
 
 
-# Whatever the local .env says.
 @override_settings(
-    AUTH_PASSWORD=True,
     AUTH_SIGNUP=True,
     AUTH_PASSWORD_RESET=True,
-    AUTH_MAGIC_LINK=False,
     ALLOWED_HOSTS=["localhost", "testserver"],
 )
 class SignupTestCase(TestCase):
