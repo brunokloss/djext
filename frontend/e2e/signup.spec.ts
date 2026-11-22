@@ -54,8 +54,17 @@ test("sign up, confirm the email and log in", async ({ page }) => {
   await login(page, email, password);
   await expect(page.getByText("We sent a new link")).toBeVisible();
 
-  await page.goto(lastLink(email));
-  await expect(page).toHaveURL("/login?verified=1");
+  // Opening the link confirms it and lands on the login, the email filled in
+  // and the notice's query gone.
+  const verify = lastLink(email);
+  await page.goto(verify);
+  await expect(page.getByText("Your account is confirmed")).toBeVisible();
+  await expect(page).toHaveURL("/login");
+  await expect(page.getByLabel("Email")).toHaveValue(email);
+  await expect(page.getByLabel("Password")).toBeFocused();
+
+  // Opened again: confirmed already, the same landing.
+  await page.goto(verify);
   await expect(page.getByText("Your account is confirmed")).toBeVisible();
 
   await login(page, email, password);
@@ -98,6 +107,8 @@ get_user_model().objects.create_user(email=${JSON.stringify(email)}, password="o
     .fill("a-brand-new-password");
   await page.getByRole("button", { name: "Save the password" }).click();
   await expect(page.getByText("Your password was changed")).toBeVisible();
+  await expect(page).toHaveURL("/login");
+  await expect(page.getByLabel("Email")).toHaveValue(email);
 
   // The link works once: opened again, it says so before asking.
   await page.goto(link);

@@ -1,3 +1,4 @@
+import { CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthCard } from "@/components/auth-card";
@@ -33,16 +34,26 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   );
   const error =
     typeof params.error === "string" ? OAUTH_ERRORS[params.error] : undefined;
+  const notice =
+    params.verified === "1"
+      ? "Your account is confirmed. Log in to continue."
+      : params.reset === "1"
+        ? "Your password was changed. Log in with the new one."
+        : undefined;
   // A full navigation, not fetch: the backend redirects to the provider and
   // back.
   const query = next ? `?next=${encodeURIComponent(next)}` : "";
 
   return (
     <AuthCard title="Log in" description="Welcome back">
-      {/* From /verify (modules/signup). */}
-      {params.verified === "1" && !error && (
-        <p role="status" className="text-sm text-muted-foreground">
-          Your account is confirmed. Log in to continue.
+      {/* From /verify and /reset-password (modules/signup). */}
+      {notice && !error && (
+        <p
+          role="status"
+          className="flex items-center gap-2 rounded-lg border border-emerald-600/30 bg-emerald-600/10 p-3 text-sm text-emerald-700 dark:text-emerald-400"
+        >
+          <CircleCheck className="size-4 shrink-0" />
+          {notice}
         </p>
       )}
       {error && (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { AuthCard } from "@/components/auth-card";
+import { LOGIN_EMAIL_KEY } from "@/components/login-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,11 @@ import { api } from "@/lib/api/client";
 // email get the same answer whether the email has an account or not.
 
 type State = { error?: string; done?: boolean };
+
+// The login page fills it in after a confirmation or a reset (LoginForm).
+function rememberLoginEmail(email: string) {
+  sessionStorage.setItem(LOGIN_EMAIL_KEY, email);
+}
 
 // A labelled input. Its message goes under it, tied to it for screen
 // readers: `error` from the form, or a wrong email found on leaving the field
@@ -281,10 +287,13 @@ export function VerifyEmail({ uid, token }: { uid: string; token: string }) {
   useEffect(() => {
     if (sent.current) return;
     sent.current = true;
-    api.POST("/api/auth/verify", { body: { uid, token } }).then(({ error }) => {
-      if (error) setError(error.detail);
-      else router.replace("/login?verified=1");
-    });
+    api
+      .POST("/api/auth/verify", { body: { uid, token } })
+      .then(({ data, error }) => {
+        if (error) return setError(error.detail);
+        rememberLoginEmail(data.email);
+        router.replace("/login?verified=1");
+      });
   }, [uid, token, router]);
 
   if (!error)
@@ -397,6 +406,7 @@ export function ResetPasswordForm({
   uid: string;
   token: string;
 }) {
+  const router = useRouter();
   const pair = usePasswordPair();
   const [alive, setAlive] = useState<boolean>();
   useEffect(() => {
@@ -406,11 +416,17 @@ export function ResetPasswordForm({
   }, [uid, token]);
   const [state, reset, pending] = useActionState(async (): Promise<State> => {
     if (!pair.check()) return {};
-    const { error, response } = await api.POST("/api/auth/password/reset", {
-      body: { uid, token, password: pair.password },
-    });
+    const { data, error, response } = await api.POST(
+      "/api/auth/password/reset",
+      {
+        body: { uid, token, password: pair.password },
+      },
+    );
     if (response.status === 410) setAlive(false);
-    return error ? { error: error.detail } : { done: true };
+    if (error) return { error: error.detail };
+    rememberLoginEmail(data.email);
+    router.replace("/login?reset=1");
+    return { done: true };
   }, {});
 
   if (alive === undefined) return null;
@@ -428,21 +444,11 @@ export function ResetPasswordForm({
         <BackToLogin />
       </>
     );
-  if (state.done)
-    return (
-      <>
-        <Done>Your password was changed. Log in with the new one.</Done>
-        <Link href="/login" className="text-center text-sm underline">
-          Log in
-        </Link>
-      </>
-    );
-
   return (
     <form action={reset} className="flex flex-col gap-4">
       {pair.fields(["New password", "Confirm the new password"], true)}
       <Alert error={state.error} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || state.done}>
         {pending ? "Saving…" : "Save the password"}
       </Button>
     </form>
