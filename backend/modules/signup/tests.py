@@ -132,6 +132,13 @@ class SignupTest(SignupTestCase):
         response = self.post("login", email="new@example.com", password=PASSWORD)
         self.assertEqual(response.status_code, 401)
 
+    @override_settings(AUTH_LOGIN_THROTTLE_EMAIL="2/15min")
+    def test_the_right_password_before_verifying_is_not_a_failed_login(self):
+        self.signup()
+        for _ in range(3):
+            response = self.post("login", email="new@example.com", password=PASSWORD)
+            self.assertEqual(response.status_code, 403)
+
     def test_two_hours_later_the_login_sends_a_link_that_works(self):
         self.signup()
         expired = link(Email.objects.get())

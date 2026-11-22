@@ -83,6 +83,11 @@ def limited_authenticate(sender, request: HttpRequest, email: str, password: str
         counted.append((name, limit, ident, stamp))
     user = authenticate(request, email=email, password=password)
     if user is None:
+        # The right password for an inactive user (one still confirming
+        # their email) isn't a failure either: they would end up locked out.
+        if getattr(request, "auth_inactive_user", None):
+            for _, limit, ident, stamp in counted:
+                limit.forget(ident, stamp)
         return None, None
     # The email's failures all go; the IP's stay (only this try is taken
     # back), or one account of its own would let an attacker reset them.
