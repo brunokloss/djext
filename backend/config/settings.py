@@ -11,7 +11,6 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
 import re
-import sys
 from datetime import timedelta
 from pathlib import Path
 
@@ -196,13 +195,9 @@ if (
 
 # Cache: the database by default, no extra service (see modules/cache/caches.py).
 # Set CACHE_URL=redis://... to use Redis instead; the code does not change.
-# `manage.py test` always uses the database cache, whatever CACHE_URL says:
-# each TestCase rolls the cache table back, so counts (rate limits, cached
-# responses) don't leak from one test into the next, and a Redis from .env
-# gets none of the tests' keys.
-TESTING = sys.argv[1:2] == ["test"]
+# `manage.py test` always uses the database cache (TEST_ENV in manage.py).
 CACHES = caches_from_url(
-    "" if TESTING else config("CACHE_URL", default=""),
+    config("CACHE_URL", default=""),
     max_entries=config("CACHE_MAX_ENTRIES", default=100_000, cast=int),
 )
 
@@ -237,8 +232,6 @@ LOGIN_URL = "/login"
 # when it is opened directly on Django). False leaves the login link
 # (AUTH_MAGIC_LINK) and the providers below.
 AUTH_PASSWORD = config("AUTH_PASSWORD", default=True, cast=bool)
-# `manage.py test` ignores the .env for these switches (config/test_runner.py).
-TEST_RUNNER = "config.test_runner.TestRunner"
 
 # Self-service accounts (modules/signup), all off: djext is B2B, the team
 # creates the accounts in the admin. AUTH_SIGNUP lets anyone sign up with
@@ -384,9 +377,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Uploaded files, such as email attachments (django-post-office): on disk in
 # MEDIA_ROOT by default, in an S3 bucket with STORAGE_URL=s3://... (see
-# modules/storage/storages.py). `manage.py test` always uses the disk.
+# modules/storage/storages.py). `manage.py test` always uses the disk
+# (TEST_ENV in manage.py).
 MEDIA_ROOT = BASE_DIR / "media"
-STORAGES = storages_from_url("" if TESTING else config("STORAGE_URL", default=""))
+STORAGES = storages_from_url(config("STORAGE_URL", default=""))
 # On S3, forms (the admin's too) upload straight from the browser to the bucket
 # (django-s3file, into tmp/s3file/) and Django gets only the key, which
 # DirectS3Storage copies to its final name: file bytes never go through Django,
@@ -401,19 +395,14 @@ if STORAGES["default"]["BACKEND"].startswith("modules.storage.storages."):
 # Logging: one line per event on stdout, JSON unless DEBUG (see modules/log).
 LOG_LEVEL = config("LOG_LEVEL", default="INFO")
 LOGGING = logging_config(debug=DEBUG, level=LOG_LEVEL)
-# `manage.py test`, its parallel workers included: every request logs a line
-# and some tests cause errors on purpose (a failing cron job, a 500), so keep
-# logs out of the output. A failing test still shows its traceback in the
-# report; modules/log/tests.py turns logging back on for its own checks.
-if TESTING:
-    import logging
-
-    logging.disable(logging.CRITICAL)
+# `manage.py test` keeps logs out of its output (config/test_runner.py).
+TEST_RUNNER = "config.test_runner.TestRunner"
 
 
-# Sentry: errors and traces (modules/sentry). Empty DSN turns it off; tests never send.
+# Sentry: errors and traces (modules/sentry). Empty DSN turns it off; tests
+# never send (TEST_ENV in manage.py).
 init_sentry(
-    dsn="" if TESTING else config("SENTRY_DSN", default=""),
+    dsn=config("SENTRY_DSN", default=""),
     environment=config(
         "SENTRY_ENVIRONMENT", default="development" if DEBUG else "production"
     ),

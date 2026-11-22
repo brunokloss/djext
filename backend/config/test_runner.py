@@ -1,30 +1,23 @@
-"""`manage.py test` with the login switches as they ship, whatever the local
-.env says, so the suite gives the same result on every machine (a .env with
-AUTH_PASSWORD=False to try the login link would fail every test that logs in
-with a password). A test that wants a switch on turns it on with
-override_settings."""
+"""`manage.py test` keeps logs out of its output, its --parallel workers
+included: every request logs a line and some tests cause errors on purpose
+(a failing cron job, a 500). A failing test still shows its traceback in the
+report; modules/log/tests.py turns logging back on for its own checks.
 
-import os
+What the tests read from the environment (the cache, storage, Sentry, the
+login switches) is set in manage.py (TEST_ENV), before the settings load."""
+
+import logging
 
 from django.test.runner import DiscoverRunner, ParallelTestSuite
-from django.test.utils import override_settings
-
-LOGIN_DEFAULTS = {
-    "AUTH_PASSWORD": True,
-    "AUTH_SIGNUP": False,
-    "AUTH_PASSWORD_RESET": False,
-    "AUTH_MAGIC_LINK": False,
-}
 
 
-def login_defaults_in_env():
-    """Each worker of --parallel loads the settings again, after this:
-    python-decouple reads the environment before the .env."""
-    os.environ.update({name: str(value) for name, value in LOGIN_DEFAULTS.items()})
+def silence_logs():
+    logging.disable(logging.CRITICAL)
 
 
 class ParallelSuite(ParallelTestSuite):
-    process_setup = login_defaults_in_env
+    # Each worker starts its own Django.
+    process_setup = silence_logs
 
 
 class TestRunner(DiscoverRunner):
@@ -32,10 +25,4 @@ class TestRunner(DiscoverRunner):
 
     def setup_test_environment(self, **kwargs):
         super().setup_test_environment(**kwargs)
-        # This process loaded the settings already.
-        self.login_defaults = override_settings(**LOGIN_DEFAULTS)
-        self.login_defaults.enable()
-
-    def teardown_test_environment(self, **kwargs):
-        self.login_defaults.disable()
-        super().teardown_test_environment(**kwargs)
+        silence_logs()

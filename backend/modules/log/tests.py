@@ -36,7 +36,7 @@ def capture(name):
     others = logger.handlers[:]
     logger.handlers = [handler]
     logger.propagate = False
-    # config/settings.py silences logging for the other tests.
+    # config/test_runner.py silences logging for the other tests.
     disabled = logging.root.manager.disable
     logging.disable(logging.NOTSET)
     try:
