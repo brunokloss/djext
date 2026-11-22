@@ -16,60 +16,104 @@ import { api } from "@/lib/api/client";
 
 type State = { error?: string; done?: boolean };
 
+// A labelled input. Its message goes under it, tied to it for screen
+// readers: `error` from the form, or a wrong email found on leaving the field
+// (cleared while typing). `hint` says the rule before anyone breaks it.
 function Field({
   id,
   label,
+  error,
+  hint,
+  onBlur,
+  onChange,
   ...props
-}: { id: string; label: string } & React.ComponentProps<typeof Input>) {
+}: {
+  id: string;
+  label: string;
+  error?: string;
+  hint?: string;
+} & React.ComponentProps<typeof Input>) {
+  const [invalid, setInvalid] = useState<string>();
+  const message = error ?? invalid;
+  const note = message ? `${id}-error` : hint ? `${id}-hint` : undefined;
   return (
     <div className="flex flex-col gap-2">
       <Label htmlFor={id}>{label}</Label>
-      <Input id={id} name={id} required {...props} />
+      <Input
+        id={id}
+        name={id}
+        required
+        aria-invalid={message ? true : undefined}
+        aria-describedby={note}
+        onBlur={(e) => {
+          if (e.target.validity.typeMismatch)
+            setInvalid("Enter a valid email.");
+          onBlur?.(e);
+        }}
+        onChange={(e) => {
+          setInvalid(undefined);
+          onChange?.(e);
+        }}
+        {...props}
+      />
+      {message ? (
+        <p id={note} className="text-sm text-destructive">
+          {message}
+        </p>
+      ) : (
+        hint && (
+          <p id={note} className="text-sm text-muted-foreground">
+            {hint}
+          </p>
+        )
+      )}
     </div>
   );
 }
 
 // The password typed twice, so a typo doesn't lock the person out. Checked
 // while typing: the second one is wrong as soon as it stops matching the
-// start of the first (or on leaving it), and the button waits until both are
-// the same. Controlled, so a refused password (too weak) keeps both.
+// start of the first, or on leaving it. check() runs on submit: it says so
+// and moves the focus there. Controlled, so a refused password (too weak)
+// keeps both.
 function usePasswordPair() {
   const [password, setPassword] = useState("");
   const [again, setAgain] = useState("");
   const [left, setLeft] = useState(false);
+  const confirm = useRef<HTMLInputElement>(null);
   const wrong =
     again !== "" && (left ? again !== password : !password.startsWith(again));
   return {
     password,
-    same: password !== "" && password === again,
-    fields: (labels: [string, string]) => (
+    check: () => {
+      if (password === again) return true;
+      setLeft(true);
+      confirm.current?.focus();
+      return false;
+    },
+    fields: (labels: [string, string], autoFocus = false) => (
       <>
         <Field
           id="password"
           label={labels[0]}
           type="password"
           autoComplete="new-password"
+          hint="At least 8 characters, not only numbers."
+          autoFocus={autoFocus}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <div className="flex flex-col gap-2">
-          <Field
-            id="password2"
-            label={labels[1]}
-            type="password"
-            autoComplete="new-password"
-            value={again}
-            onChange={(e) => setAgain(e.target.value)}
-            onBlur={() => setLeft(true)}
-            aria-invalid={wrong}
-            aria-describedby={wrong ? "password2-error" : undefined}
-          />
-          {wrong && (
-            <p id="password2-error" className="text-sm text-destructive">
-              The passwords don't match.
-            </p>
-          )}
-        </div>
+        <Field
+          id="password2"
+          label={labels[1]}
+          type="password"
+          autoComplete="new-password"
+          ref={confirm}
+          error={wrong ? "The passwords don't match." : undefined}
+          value={again}
+          onChange={(e) => setAgain(e.target.value)}
+          onBlur={() => setLeft(true)}
+        />
       </>
     ),
   };
@@ -159,6 +203,7 @@ export function SignupForm() {
   const pair = usePasswordPair();
   const [sent, setSent] = useState(false);
   const [state, signup, pending] = useActionState(async (): Promise<State> => {
+    if (!pair.check()) return {};
     const { error } = await api.POST("/api/auth/signup", {
       body: {
         email: values.email,
@@ -192,6 +237,7 @@ export function SignupForm() {
       <form action={signup} className="flex flex-col gap-4">
         <Field
           id="name"
+          autoFocus
           label="Name"
           autoComplete="given-name"
           value={values.name}
@@ -207,7 +253,7 @@ export function SignupForm() {
         />
         {pair.fields(["Password", "Confirm password"])}
         <Alert error={state.error} />
-        <Button type="submit" disabled={pending || !pair.same}>
+        <Button type="submit" disabled={pending}>
           {pending ? "Signing up…" : "Sign up"}
         </Button>
         <p className="text-center text-sm text-muted-foreground">
@@ -325,6 +371,7 @@ export function ForgotPasswordForm() {
       <form action={ask} className="flex flex-col gap-4">
         <Field
           id="email"
+          autoFocus
           label="Email"
           type="email"
           autoComplete="email"
@@ -358,6 +405,7 @@ export function ResetPasswordForm({
       .then(({ response }) => setAlive(response.ok));
   }, [uid, token]);
   const [state, reset, pending] = useActionState(async (): Promise<State> => {
+    if (!pair.check()) return {};
     const { error, response } = await api.POST("/api/auth/password/reset", {
       body: { uid, token, password: pair.password },
     });
@@ -392,9 +440,9 @@ export function ResetPasswordForm({
 
   return (
     <form action={reset} className="flex flex-col gap-4">
-      {pair.fields(["New password", "Confirm the new password"])}
+      {pair.fields(["New password", "Confirm the new password"], true)}
       <Alert error={state.error} />
-      <Button type="submit" disabled={pending || !pair.same}>
+      <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save the password"}
       </Button>
     </form>

@@ -42,7 +42,9 @@ test("sign up, confirm the email and log in", async ({ page }) => {
   // A typo shows while typing, and the button waits.
   await page.getByLabel("Confirm password").fill("a-typo");
   await expect(page.getByText("The passwords don't match")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign up" })).toBeDisabled();
+  // Submitted anyway: nothing is sent, and the focus goes there.
+  await page.getByRole("button", { name: "Sign up" }).click();
+  await expect(page.getByLabel("Confirm password")).toBeFocused();
   await page.getByLabel("Confirm password").fill(password);
   await expect(page.getByText("The passwords don't match")).toBeHidden();
   await page.getByRole("button", { name: "Sign up" }).click();
