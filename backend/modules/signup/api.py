@@ -52,10 +52,12 @@ class MailLimit(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": self.ident}
 
 
-def mail_wait(request: HttpRequest, email: str) -> int | None:
+def mail_wait(request: HttpRequest, email: str, purpose: str) -> int | None:
     """Seconds to wait when a limit is reached, or None. Each limit that lets
     the try in counts it. The IP's first: a try it refuses must not use up
-    the email's (someone over their own limit would lock the owner out)."""
+    the email's (someone over their own limit would lock the owner out).
+    The email's is per `purpose` ("signup" for the confirmation links,
+    "reset" for the password): confirming must not use up the first reset."""
     # Keyed with SECRET_KEY: the cache monitor lists the keys, and an email
     # must not be readable there.
     email = services.normalize_email(email)
@@ -66,7 +68,7 @@ def mail_wait(request: HttpRequest, email: str) -> int | None:
             settings.AUTH_MAIL_THROTTLE_IP,
             BaseThrottle().get_ident(request),
         ),
-        ("signup_email", settings.AUTH_MAIL_THROTTLE_EMAIL, hashed),
+        (f"{purpose}_email", settings.AUTH_MAIL_THROTTLE_EMAIL, hashed),
     ]
     for scope, rate, ident in limits:
         if not rate:
@@ -98,7 +100,9 @@ def refused(request: HttpRequest, enabled: bool, what: str):
 
 def too_many(response: HttpResponse, wait: int):
     response["Retry-After"] = str(wait)
-    return 429, {"detail": "Too many emails asked for. Try again later."}
+    minutes = -(-wait // 60)
+    when = "in a minute" if minutes == 1 else f"in {minutes} minutes"
+    return 429, {"detail": f"Too many emails asked for. Try again {when}."}
 
 
 def invalid(error: ValidationError):
@@ -121,7 +125,7 @@ def signup(request: HttpRequest, response: HttpResponse, data: SignupIn):
         services.check(*fields)
     except ValidationError as error:
         return invalid(error)
-    if wait := mail_wait(request, data.email):
+    if wait := mail_wait(request, data.email, "signup"):
         return too_many(response, wait)
     services.sign_up(site(request), *fields)
     return 204, None
@@ -133,7 +137,7 @@ def resend_verification(request: HttpRequest, response: HttpResponse, data: Emai
     204 either way."""
     if answer := refused(request, settings.AUTH_SIGNUP, "Sign-up"):
         return answer
-    if wait := mail_wait(request, data.email):
+    if wait := mail_wait(request, data.email, "signup"):
         return too_many(response, wait)
     services.resend_verification(site(request), data.email)
     return 204, None
@@ -158,7 +162,7 @@ def forgot_password(request: HttpRequest, response: HttpResponse, data: EmailIn)
     account or not."""
     if answer := refused(request, settings.AUTH_PASSWORD_RESET, "Password reset"):
         return answer
-    if wait := mail_wait(request, data.email):
+    if wait := mail_wait(request, data.email, "reset"):
         return too_many(response, wait)
     services.request_reset(site(request), data.email)
     return 204, None

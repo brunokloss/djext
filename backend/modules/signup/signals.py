@@ -25,7 +25,7 @@ def on_inactive_login(sender, request, user, **kwargs):
         return None
     from .api import mail_wait, site
 
-    if mail_wait(request, user.email):
+    if mail_wait(request, user.email, "signup"):
         return "Your email isn't confirmed yet. Open the link we sent you."
     services.resend_verification(site(request), user.email)
     return f"Your email isn't confirmed yet. We sent a new link to {user.email}."

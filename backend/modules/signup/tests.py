@@ -333,10 +333,20 @@ class SettingsTest(SignupTestCase):
             self.assertEqual(
                 self.post("password/forgot", email="a@b.co").status_code, 204
             )
-        response = self.post("verify/resend", email="A@b.co")
+        response = self.post("password/forgot", email="A@b.co")
         self.assertEqual(response.status_code, 429)
         self.assertIn("Retry-After", response)
+        self.assertIn("Try again in 60 minutes", response.json()["detail"])
         self.assertEqual(self.post("password/forgot", email="c@b.co").status_code, 204)
+
+    @override_settings(AUTH_MAIL_THROTTLE_EMAIL="2/h", AUTH_MAIL_THROTTLE_IP="")
+    def test_confirming_does_not_use_up_the_reset(self):
+        for _ in range(2):
+            self.assertEqual(
+                self.post("verify/resend", email="a@b.co").status_code, 204
+            )
+        self.assertEqual(self.post("verify/resend", email="a@b.co").status_code, 429)
+        self.assertEqual(self.post("password/forgot", email="a@b.co").status_code, 204)
 
     @override_settings(AUTH_MAIL_THROTTLE_EMAIL="1/h", AUTH_MAIL_THROTTLE_IP="1/h")
     def test_a_try_the_ip_refuses_does_not_count_for_the_email(self):

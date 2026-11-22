@@ -246,6 +246,7 @@ AUTH_SIGNUP = config("AUTH_SIGNUP", default=False, cast=bool)
 AUTH_PASSWORD_RESET = config("AUTH_PASSWORD_RESET", default=False, cast=bool)
 PASSWORD_RESET_TIMEOUT = 60 * 60
 # Emails those send, per address and per IP, as in the login limits above.
+# The address's limit counts the confirmation links and the resets apart.
 # Past it they answer 429 and send nothing.
 AUTH_MAIL_THROTTLE_EMAIL = config("AUTH_MAIL_THROTTLE_EMAIL", default="3/h")
 AUTH_MAIL_THROTTLE_IP = config("AUTH_MAIL_THROTTLE_IP", default="20/h")
