@@ -1,10 +1,9 @@
 import { execFileSync } from "node:child_process";
 import { expect, test } from "@playwright/test";
 
-// Log in with a link by email (backend/modules/signup). Skipped unless the
-// backend has it on, which takes the password off (AUTH_PASSWORD=False,
-// AUTH_MAGIC_LINK=True): the other tests log in with the password, so run
-// this one against a `make dev` set up that way.
+// Log in with a link by email (backend/modules/signup). Skipped when the
+// backend has it off (AUTH_MAGIC_LINK): playwright.config.ts turns it on for
+// the backend it starts, not for a `make dev` it reuses.
 test.beforeEach(async ({ request }) => {
   const options = await (await request.get("/api/auth/providers")).json();
   test.skip(!options.magic_link, "the login link is off");
@@ -34,9 +33,9 @@ test("a link by email logs in once and goes to next", async ({ page }) => {
   django(`from django.contrib.auth import get_user_model
 get_user_model().objects.create_user(email=${JSON.stringify(email)})`);
 
-  // On the login page itself: the email and the button, no password.
   await page.goto("/login?next=/notes");
-  await expect(page.getByLabel("Password")).toHaveCount(0);
+  await page.getByRole("link", { name: "Email me a login link" }).click();
+  await expect(page).toHaveURL("/login-link?next=%2Fnotes");
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Email me a login link" }).click();
   await expect(page.getByText(`We sent a link to ${email}`)).toBeVisible();

@@ -82,9 +82,19 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </div>
       ) : null}
       {options?.password && <LoginForm next={next} />}
-      {/* A login link by email instead of the password
-          (backend/modules/signup), off by default. */}
-      {options?.magic_link && <LoginLinkForm next={next} />}
+      {/* A login link by email (backend/modules/signup), off by default:
+          its own page next to the password, the only form without it. */}
+      {options?.magic_link &&
+        (options.password ? (
+          <Link
+            href={`/login-link${query}`}
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Email me a login link
+          </Link>
+        ) : (
+          <LoginLinkForm next={next} />
+        ))}
       {/* Self-service accounts (backend/modules/signup), off by default. */}
       {options?.password_reset && (
         <Link

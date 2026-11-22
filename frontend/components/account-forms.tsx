@@ -375,8 +375,8 @@ export function ForgotPasswordForm() {
 }
 
 // Asks for an email and sends it a link that logs in, then goes to `next`.
-// The login page's form when the link replaces the password, and again on a
-// dead link (`standalone`: with a way back to the login).
+// On /login-link (`standalone`: with a way back to the login), and on /login
+// itself when there is no password login.
 export function LoginLinkForm({
   next,
   standalone = false,

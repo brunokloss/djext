@@ -30,10 +30,13 @@ export default defineConfig({
       cwd: "../backend",
       url: "http://localhost:8000/api/health",
       reuseExistingServer: !process.env.CI,
-      // Off by default; on here for e2e/signup.spec.ts (modules/signup).
-      // Not AUTH_MAGIC_LINK: it needs the password off, and the other tests
-      // log in with it (see e2e/login-link.spec.ts).
-      env: { AUTH_SIGNUP: "True", AUTH_PASSWORD_RESET: "True" },
+      // Off by default; on here for e2e/signup.spec.ts and
+      // e2e/login-link.spec.ts (modules/signup).
+      env: {
+        AUTH_SIGNUP: "True",
+        AUTH_PASSWORD_RESET: "True",
+        AUTH_MAGIC_LINK: "True",
+      },
     },
     ...(oauth
       ? [

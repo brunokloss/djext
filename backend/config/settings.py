@@ -244,10 +244,9 @@ AUTH_PASSWORD = True if TESTING else config("AUTH_PASSWORD", default=True, cast=
 # creates the accounts in the admin. AUTH_SIGNUP lets anyone sign up with
 # email and password (/signup), the account inactive until they open the link
 # sent by email. AUTH_PASSWORD_RESET sends a link to choose a new password
-# (/forgot-password). AUTH_MAGIC_LINK logs in with a link sent by email
-# instead of the password (AUTH_PASSWORD=False: one or the other), only for
-# accounts that exist and are active. The links expire after
-# PASSWORD_RESET_TIMEOUT seconds.
+# (/forgot-password). AUTH_MAGIC_LINK sends a link that logs in (/login-link),
+# with or without AUTH_PASSWORD, only to accounts that exist and are active.
+# The links expire after PASSWORD_RESET_TIMEOUT seconds.
 AUTH_SIGNUP = False if TESTING else config("AUTH_SIGNUP", default=False, cast=bool)
 AUTH_PASSWORD_RESET = (
     False if TESTING else config("AUTH_PASSWORD_RESET", default=False, cast=bool)
