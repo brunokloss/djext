@@ -98,7 +98,7 @@ function usePasswordPair() {
       return false;
     },
     fields: (labels: [string, string], autoFocus = false) => (
-      <>
+      <div className="grid grid-cols-2 items-start gap-4">
         <Field
           id="password"
           label={labels[0]}
@@ -120,7 +120,7 @@ function usePasswordPair() {
           onChange={(e) => setAgain(e.target.value)}
           onBlur={() => setLeft(true)}
         />
-      </>
+      </div>
     ),
   };
 }
