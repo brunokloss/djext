@@ -12,9 +12,10 @@ import { api } from "@/lib/api/client";
 import { useClearApiCache } from "@/lib/api/hooks";
 
 // The forms of the self-service pages (backend/modules/signup): sign up,
-// verify the email, forgot and reset the password, log in with a link. Each posts from the
-// browser through the Next proxy, like the login form. The ones that send an
-// email get the same answer whether the email has an account or not.
+// verify the email, forgot and reset the password, log in with a link. Each
+// posts from the browser through the Next proxy, like the login form. The
+// ones that send an email get the same answer whether the email has an
+// account or not.
 
 type State = { error?: string; done?: boolean };
 
