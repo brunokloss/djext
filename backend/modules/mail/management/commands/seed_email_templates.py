@@ -22,23 +22,6 @@ TEMPLATES = [
         ),
     },
     {
-        "name": "password_reset",
-        "description": "Example: a link that expires. Edit it in the admin.",
-        "subject": "Reset your password",
-        "content": (
-            "{% autoescape off %}Hi {{ name }},\n\nReset it here: {{ url }}\n"
-            "The link expires in 1 hour.\n{% endautoescape %}"
-        ),
-        "html_content": (
-            '<div style="font-family:sans-serif;max-width:480px;margin:0 auto">'
-            "<h1>Reset your password</h1>"
-            "<p>Hi {{ name }}, use the button below. It expires in 1 hour.</p>"
-            '<p><a href="{{ url }}" style="display:inline-block;padding:10px 18px;'
-            'background:#dc2626;color:#fff;border-radius:6px;text-decoration:none">'
-            "Choose a new password</a></p></div>"
-        ),
-    },
-    {
         "name": "invoice",
         "description": "Example: sent with the invoice attached.",
         "subject": "Invoice {{ number }}",
