@@ -18,8 +18,14 @@ def on_user_saved(sender, instance, update_fields, **kwargs):
 
 
 @receiver(inactive_login, dispatch_uid="signup.on_inactive_login")
-def on_inactive_login(sender, user, **kwargs):
-    # The right password before the link: say so instead of "invalid".
-    if services.waiting(user):
-        return "Confirm your email first: open the link we sent you."
-    return None
+def on_inactive_login(sender, request, user, **kwargs):
+    # The right password before the link: say so instead of "invalid", and
+    # send a new link (the first may have expired), within the email limits.
+    if not services.waiting(user):
+        return None
+    from .api import mail_wait, site
+
+    if mail_wait(request, user.email):
+        return "Your email isn't confirmed yet. Open the link we sent you."
+    services.resend_verification(site(request), user.email)
+    return f"Your email isn't confirmed yet. We sent a new link to {user.email}."

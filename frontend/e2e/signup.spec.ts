@@ -50,7 +50,7 @@ test("sign up, confirm the email and log in", async ({ page }) => {
 
   // Not active yet.
   await login(page, email, password);
-  await expect(page.getByText("Confirm your email first")).toBeVisible();
+  await expect(page.getByText("We sent a new link")).toBeVisible();
 
   await page.goto(lastLink(email));
   await expect(page).toHaveURL("/login?verified=1");

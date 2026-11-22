@@ -25,10 +25,10 @@ login_throttled = Signal()
 login_options_requested = Signal()
 
 # A login with the right password for a user who is not active. Sent as
-# `inactive_login.send(sender, user=user)`: a module that knows why returns the
-# message the login shows (modules/signup: the email is not confirmed yet),
-# else None. Without one, the login says "Invalid email or password", as for a
-# wrong password. Only the password's owner gets here, so it tells nothing to
+# `inactive_login.send(sender, request=request, user=user)`: a module that
+# knows why returns the message the login shows (modules/signup: the email is
+# not confirmed yet, and a new link goes), else None. Without one, the login
+# says "Invalid email or password", as for a wrong password. Only the password's owner gets here, so it tells nothing to
 # whoever is guessing emails.
 inactive_login = Signal()
 

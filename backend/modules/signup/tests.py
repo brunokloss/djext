@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
 from django.contrib.auth import get_user_model
@@ -5,6 +7,7 @@ from django.test import Client, TestCase, override_settings
 from post_office.models import Email, EmailTemplate
 
 from .models import Signup
+from .tokens import verify_tokens
 
 User = get_user_model()
 PASSWORD = "a-long-new-password"
@@ -105,10 +108,12 @@ class SignupTest(SignupTestCase):
 
     def test_the_user_cannot_log_in_before_verifying(self):
         self.signup()
-        # The right password: told to confirm the email.
+        # The right password: told to confirm the email, with a new link
+        # (the first may have expired).
         response = self.post("login", email="new@example.com", password=PASSWORD)
         self.assertEqual(response.status_code, 403)
-        self.assertIn("Confirm your email", response.json()["detail"])
+        self.assertIn("We sent a new link", response.json()["detail"])
+        self.assertEqual(Email.objects.count(), 2)
         # A wrong one: told nothing.
         response = self.post("login", email="new@example.com", password="wrong")
         self.assertEqual(response.status_code, 401)
@@ -116,6 +121,29 @@ class SignupTest(SignupTestCase):
         Signup.objects.all().delete()
         response = self.post("login", email="new@example.com", password=PASSWORD)
         self.assertEqual(response.status_code, 401)
+
+    def test_two_hours_later_the_login_sends_a_link_that_works(self):
+        self.signup()
+        expired = link(Email.objects.get())
+        del expired["path"]
+        later = datetime.now() + timedelta(hours=2)
+        with mock.patch.object(verify_tokens, "_now", return_value=later):
+            self.assertEqual(self.post("verify", **expired).status_code, 400)
+            response = self.post("login", email="new@example.com", password=PASSWORD)
+            self.assertIn("We sent a new link", response.json()["detail"])
+            fresh = link(Email.objects.latest("id"))
+            del fresh["path"]
+            self.assertEqual(self.post("verify", **fresh).status_code, 204)
+        response = self.post("login", email="new@example.com", password=PASSWORD)
+        self.assertEqual(response.status_code, 200)
+
+    @override_settings(AUTH_MAIL_THROTTLE_EMAIL="1/h")
+    def test_past_the_limit_the_login_sends_no_link(self):
+        self.signup()
+        response = self.post("login", email="new@example.com", password=PASSWORD)
+        self.assertEqual(response.status_code, 403)
+        self.assertIn("Open the link we sent you", response.json()["detail"])
+        self.assertEqual(Email.objects.count(), 1)
 
     def test_the_email_templates_are_created_by_the_migration(self):
         names = set(EmailTemplate.objects.values_list("name", flat=True))

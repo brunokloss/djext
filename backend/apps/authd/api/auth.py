@@ -116,7 +116,9 @@ def login_view(request: HttpRequest, response: HttpResponse, data: LoginIn):
     if user is None:
         # The right password, but a module knows why the user is inactive.
         if inactive := getattr(request, "auth_inactive_user", None):
-            for _, detail in inactive_login.send(login_view, user=inactive):
+            for _, detail in inactive_login.send(
+                login_view, request=request, user=inactive
+            ):
                 if detail:
                     return 403, {"detail": detail}
         return 401, {"detail": "Invalid email or password"}
