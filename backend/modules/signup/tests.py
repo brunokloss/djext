@@ -64,10 +64,19 @@ class SignupTest(SignupTestCase):
         self.assertNotIn("&amp;", body)
         self.assertIn("Hi D'Ávila,", body)
 
-    def test_an_existing_email_gets_the_same_answer_and_nothing(self):
+    def test_an_existing_email_gets_the_same_answer_and_a_note(self):
         User.objects.create_user(email="ana@example.com", password="x")
         self.assertEqual(self.signup(email="ANA@example.com").status_code, 204)
         self.assertEqual(User.objects.count(), 1)
+        email = Email.objects.get()
+        self.assertEqual(email.template.name, "account_exists")
+        self.assertEqual(email.context["login_url"], "http://localhost:3000/login")
+        body = email.email_message().body
+        self.assertIn("http://localhost:3000/forgot-password", body)
+
+    def test_a_blocked_email_gets_nothing(self):
+        User.objects.create_user(email="ana@example.com", password="x", is_active=False)
+        self.assertEqual(self.signup(email="ana@example.com").status_code, 204)
         self.assertFalse(Email.objects.exists())
 
     def test_signing_up_again_while_waiting_takes_the_new_password(self):
@@ -147,7 +156,9 @@ class SignupTest(SignupTestCase):
 
     def test_the_email_templates_are_created_by_the_migration(self):
         names = set(EmailTemplate.objects.values_list("name", flat=True))
-        self.assertLessEqual({"verify_email", "password_reset"}, names)
+        self.assertLessEqual(
+            {"verify_email", "password_reset", "account_exists"}, names
+        )
 
 
 class VerifyTest(SignupTestCase):
@@ -296,12 +307,12 @@ class PasswordResetTest(SignupTestCase):
             self.assertEqual(self.forgot(email).status_code, 204)
         self.assertFalse(Email.objects.exists())
 
-    def test_does_not_activate_a_user_waiting_for_verification(self):
+    def test_a_user_waiting_for_verification_gets_that_link(self):
         self.signup()
         self.forgot("new@example.com")
-        self.assertEqual(
-            Email.objects.filter(template__name="password_reset").count(), 0
-        )
+        names = list(Email.objects.values_list("template__name", flat=True))
+        self.assertEqual(names, ["verify_email", "verify_email"])
+        self.assertFalse(User.objects.get(email="new@example.com").is_active)
 
 
 class SettingsTest(SignupTestCase):

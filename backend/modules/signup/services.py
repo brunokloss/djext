@@ -11,6 +11,7 @@ Those that send a link take `site`, the frontend's address the link points to
 ("https://app.example.com"): the API builds it from the request.
 """
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.contrib.auth.password_validation import validate_password
@@ -29,6 +30,8 @@ User = get_user_model()
 # by migrations/0002_email_templates.py.
 VERIFY_TEMPLATE = "verify_email"
 RESET_TEMPLATE = "password_reset"
+# Sign-up with an email that has an account: only its inbox learns it.
+EXISTS_TEMPLATE = "account_exists"
 
 
 def normalize_email(email: str) -> str:
@@ -42,6 +45,21 @@ def _send(site: str, user, template: str, path: str, token: str) -> None:
         user.email,
         template=template,
         context={"name": user.get_short_name(), "url": url},
+        render_on_delivery=True,
+    )
+
+
+def _send_account_exists(site: str, user) -> None:
+    site = site.rstrip("/")
+    reset = f"{site}/forgot-password" if settings.AUTH_PASSWORD_RESET else ""
+    mail.send(
+        user.email,
+        template=EXISTS_TEMPLATE,
+        context={
+            "name": user.get_short_name(),
+            "login_url": f"{site}/login",
+            "reset_url": reset,
+        },
         render_on_delivery=True,
     )
 
@@ -60,9 +78,11 @@ def check(email: str, password: str, first_name="", last_name="") -> None:
 
 def sign_up(site: str, email: str, password: str, first_name="", last_name=""):
     """Creates an inactive user and sends them the verification link; check()
-    first. An email that has an account already gets nothing, unless it is
-    still waiting for its verification: then the latest sign-up wins (its
-    password and names, which kills the earlier links) and a new link goes."""
+    first. An email still waiting for its verification gets the latest
+    sign-up (its password and names, which kills the earlier links) and a
+    new link. An active account gets an email saying it exists, with the
+    login (the answer is the same: only the inbox learns it). A blocked one
+    gets nothing."""
     email = normalize_email(email)
     existing = User.objects.filter(email__iexact=email).first()
     if existing is not None:
@@ -71,9 +91,11 @@ def sign_up(site: str, email: str, password: str, first_name="", last_name=""):
             existing.first_name, existing.last_name = first_name, last_name
             existing.save(update_fields=["password", "first_name", "last_name"])
             _send_verification(site, existing)
-        else:
-            # As long as creating one takes.
-            make_password(password)
+            return
+        # As long as creating one takes.
+        make_password(password)
+        if existing.is_active:
+            _send_account_exists(site, existing)
         return
     try:
         with transaction.atomic():
@@ -156,12 +178,14 @@ def verify(uid: str, token: str):
 
 def request_reset(site: str, email: str) -> None:
     """Sends the reset link to an active user with a password, like Django's
-    PasswordResetForm: never to one who is blocked or waiting for their
-    verification (resetting doesn't activate anyone)."""
-    user = User.objects.filter(
-        email__iexact=normalize_email(email), is_active=True
-    ).first()
-    if user is None or not user.has_usable_password():
+    PasswordResetForm, never to a blocked one. One waiting for their
+    verification gets that link instead: resetting doesn't activate anyone,
+    and confirming is what they need."""
+    user = User.objects.filter(email__iexact=normalize_email(email)).first()
+    if user is not None and waiting(user):
+        _send_verification(site, user)
+        return
+    if user is None or not user.is_active or not user.has_usable_password():
         return
     _send(site, user, RESET_TEMPLATE, "/reset-password", reset_tokens.make_token(user))
     action_performed.send(
