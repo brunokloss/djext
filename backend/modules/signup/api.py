@@ -37,9 +37,12 @@ class VerifyIn(Schema):
     token: str
 
 
-class ResetIn(Schema):
+class LinkIn(Schema):
     uid: str
     token: str
+
+
+class ResetIn(LinkIn):
     password: str
 
 
@@ -175,15 +178,33 @@ def forgot_password(request: HttpRequest, response: HttpResponse, data: EmailIn)
     return 204, None
 
 
+DEAD_LINK = {"detail": "This link is invalid, expired or used already."}
+
+
+@router.post(
+    "/auth/password/reset/check",
+    response={204: None, 403: ErrorOut, 410: ErrorOut},
+    tags=["auth"],
+)
+def check_reset_link(request: HttpRequest, data: LinkIn):
+    """204 when the reset link still works, so the page asks for the new
+    password only then; 410 when it is wrong, expired or used already."""
+    if answer := refused(request, settings.AUTH_PASSWORD_RESET, "Password reset"):
+        return answer
+    if services.reset_user(data.uid, data.token) is None:
+        return 410, DEAD_LINK
+    return 204, None
+
+
 @router.post(
     "/auth/password/reset",
-    response={204: None, 400: ErrorOut, 403: ErrorOut},
+    response={200: ConfirmedOut, 400: ErrorOut, 403: ErrorOut, 410: ErrorOut},
     tags=["auth"],
 )
 def reset_password(request: HttpRequest, data: ResetIn):
     """Sets the new password from the link in the email and ends the user's
-    sessions. 400 when the link is wrong, expired or used already, or the
-    password is too weak."""
+    sessions. 400 when the password is too weak, 410 when the link is wrong,
+    expired or used already."""
     if answer := refused(request, settings.AUTH_PASSWORD_RESET, "Password reset"):
         return answer
     try:
@@ -191,5 +212,5 @@ def reset_password(request: HttpRequest, data: ResetIn):
     except ValidationError as error:
         return invalid(error)
     if user is None:
-        return 400, {"detail": "This link is invalid or has expired."}
-    return 204, None
+        return 410, DEAD_LINK
+    return 200, {"email": user.email}

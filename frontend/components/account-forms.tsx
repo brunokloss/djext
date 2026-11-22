@@ -252,6 +252,8 @@ export function ForgotPasswordForm() {
   );
 }
 
+// Checks the link first, so a dead one says so before asking for a password,
+// and offers a new one.
 export function ResetPasswordForm({
   uid,
   token,
@@ -260,12 +262,35 @@ export function ResetPasswordForm({
   token: string;
 }) {
   const pair = usePasswordPair();
+  const [alive, setAlive] = useState<boolean>();
+  useEffect(() => {
+    api
+      .POST("/api/auth/password/reset/check", { body: { uid, token } })
+      .then(({ response }) => setAlive(response.ok));
+  }, [uid, token]);
   const [state, reset, pending] = useActionState(async (): Promise<State> => {
-    const { error } = await api.POST("/api/auth/password/reset", {
+    const { error, response } = await api.POST("/api/auth/password/reset", {
       body: { uid, token, password: pair.password },
     });
+    if (response.status === 410) setAlive(false);
     return error ? { error: error.detail } : { done: true };
   }, {});
+
+  if (alive === undefined) return null;
+  if (!alive)
+    return (
+      <>
+        <Alert error="This link is invalid, expired or used already." />
+        <EmailLinkForm
+          path="/api/auth/password/forgot"
+          button="Send a new link"
+          sent={(email) =>
+            `If ${email} has an account, a link to choose a new password is on its way.`
+          }
+        />
+        <BackToLogin />
+      </>
+    );
   if (state.done)
     return (
       <>

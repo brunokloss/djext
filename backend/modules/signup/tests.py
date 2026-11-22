@@ -243,11 +243,16 @@ class PasswordResetTest(SignupTestCase):
         self.assertEqual(email.template.name, "password_reset")
         found = link(email)
         self.assertEqual(found.pop("path"), "/reset-password")
-        self.assertEqual(self.reset(**found).status_code, 204)
+        self.assertEqual(self.post("password/reset/check", **found).status_code, 204)
+        response = self.reset(**found)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"email": "ana@example.com"})
         self.user.refresh_from_db()
         self.assertTrue(self.user.check_password(PASSWORD))
+        # Used: the page says so before asking for a password.
+        self.assertEqual(self.post("password/reset/check", **found).status_code, 410)
         self.assertEqual(
-            self.reset(password="another-long-one", **found).status_code, 400
+            self.reset(password="another-long-one", **found).status_code, 410
         )
 
     def test_ends_the_users_sessions(self):

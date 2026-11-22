@@ -169,13 +169,21 @@ def request_reset(site: str, email: str) -> None:
     )
 
 
+def reset_user(uid: str, token: str):
+    """The active user a reset link is for, or None when it is wrong, expired
+    or used already."""
+    user = _user(uid)
+    if user is None or not user.is_active or not reset_tokens.check_token(user, token):
+        return None
+    return user
+
+
 def reset_password(uid: str, token: str, password: str):
     """Sets the new password. Returns the user, or None when the link is wrong,
     expired or used already. Raises ValidationError for a password that fails
     AUTH_PASSWORD_VALIDATORS. Their sessions end: each one holds a hash of the
     old password (get_session_auth_hash)."""
-    user = _user(uid)
-    if user is None or not user.is_active or not reset_tokens.check_token(user, token):
+    if (user := reset_user(uid, token)) is None:
         return None
     validate_password(password, user)
     with transaction.atomic():

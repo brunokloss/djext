@@ -129,10 +129,31 @@ export interface paths {
         /**
          * Reset Password
          * @description Sets the new password from the link in the email and ends the user's
-         *     sessions. 400 when the link is wrong, expired or used already, or the
-         *     password is too weak.
+         *     sessions. 400 when the password is too weak, 410 when the link is wrong,
+         *     expired or used already.
          */
         post: operations["modules_signup_api_reset_password"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/password/reset/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Reset Link
+         * @description 204 when the reset link still works, so the page asks for the new
+         *     password only then; 410 when it is wrong, expired or used already.
+         */
+        post: operations["modules_signup_api_check_reset_link"];
         delete?: never;
         options?: never;
         head?: never;
@@ -553,6 +574,13 @@ export interface components {
              * Format: date-time
              */
             time: string;
+        };
+        /** LinkIn */
+        LinkIn: {
+            /** Token */
+            token: string;
+            /** Uid */
+            uid: string;
         };
         /** LoginIn */
         LoginIn: {
@@ -988,12 +1016,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description No Content */
-            204: {
+            /** @description OK */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ConfirmedOut"];
+                };
             };
             /** @description Bad Request */
             400: {
@@ -1006,6 +1036,55 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_check_reset_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };

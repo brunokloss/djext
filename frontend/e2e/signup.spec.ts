@@ -97,18 +97,10 @@ get_user_model().objects.create_user(email=${JSON.stringify(email)}, password="o
   await page.getByRole("button", { name: "Save the password" }).click();
   await expect(page.getByText("Your password was changed")).toBeVisible();
 
-  // The link works once.
+  // The link works once: opened again, it says so before asking.
   await page.goto(link);
-  await page
-    .getByLabel("New password", { exact: true })
-    .fill("yet-another-password");
-  await page
-    .getByLabel("Confirm the new password")
-    .fill("yet-another-password");
-  await page.getByRole("button", { name: "Save the password" }).click();
-  await expect(
-    page.getByText("This link is invalid or has expired"),
-  ).toBeVisible();
+  await expect(page.getByText("used already")).toBeVisible();
+  await expect(page.getByLabel("New password", { exact: true })).toBeHidden();
 
   await login(page, email, "a-brand-new-password");
   await expect(page).toHaveURL("/");
