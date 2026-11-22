@@ -1,4 +1,5 @@
 import { CircleCheck } from "lucide-react";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuthCard } from "@/components/auth-card";
@@ -11,6 +12,8 @@ import { cn } from "@/lib/utils";
 
 // Blocks on the session check, like the home page.
 export const instant = false;
+
+export const metadata: Metadata = { title: "Log in" };
 
 // Set by the backend when logging in with a provider fails (modules/oauth).
 // Unused if that module is gone.

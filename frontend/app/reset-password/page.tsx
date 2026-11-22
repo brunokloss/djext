@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ResetPasswordForm } from "@/components/account-forms";
 import { AuthCard } from "@/components/auth-card";
 import { getLoginOptions } from "@/lib/auth";
 
 export const instant = false;
+
+export const metadata: Metadata = { title: "Choose a new password" };
 
 // The link in the password reset email: /reset-password?uid=...&token=...
 export default async function ResetPasswordPage({
