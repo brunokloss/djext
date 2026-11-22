@@ -1,7 +1,9 @@
 from django.conf import settings
+from django.contrib.auth import login
 from django.core.exceptions import ValidationError
 from django.http import HttpRequest, HttpResponse
 from django.utils.crypto import salted_hmac
+from django.utils.http import url_has_allowed_host_and_scheme
 from ninja import Router, Schema
 from ninja.throttling import BaseThrottle, SimpleRateThrottle
 from ninja.utils import check_csrf
@@ -95,13 +97,14 @@ def site(request: HttpRequest) -> str:
     return request.build_absolute_uri("/").rstrip("/")
 
 
-def refused(request: HttpRequest, enabled: bool, what: str):
+def refused(request: HttpRequest, enabled: bool, what: str, *, password=True):
     """The answer when the request can't go on, or None. These endpoints have
     no auth, so they check CSRF themselves (like authd's login)."""
     if check_csrf(request):
         return 403, {"detail": "CSRF check failed"}
-    # Both are about passwords: off when password login is.
-    if not (enabled and settings.AUTH_PASSWORD):
+    # Sign-up and reset are about passwords: off when password login is. The
+    # login link (password=False) isn't.
+    if not (enabled and (settings.AUTH_PASSWORD or not password)):
         return 403, {"detail": f"{what} is disabled"}
     return None
 
@@ -214,3 +217,53 @@ def reset_password(request: HttpRequest, data: ResetIn):
     if user is None:
         return 410, DEAD_LINK
     return 200, {"email": user.email}
+
+
+class LoginLinkIn(EmailIn):
+    # The page to go to once logged in: a path on the frontend.
+    next: str = ""
+
+
+def safe_next(next: str) -> str:
+    """Only same-origin paths, so the link can't be an open redirect (as in
+    modules/oauth)."""
+    if next.startswith("/") and url_has_allowed_host_and_scheme(next, None):
+        return next
+    return ""
+
+
+@router.post("/auth/login-link", response=MAIL_RESPONSES, tags=["auth"])
+def request_login_link(request: HttpRequest, response: HttpResponse, data: LoginLinkIn):
+    """Sends a link that logs in. 204 whether the email has an account or
+    not. Works with AUTH_PASSWORD off."""
+    if answer := refused(
+        request, settings.AUTH_MAGIC_LINK, "Login link", password=False
+    ):
+        return answer
+    if wait := mail_wait(request, data.email, "login"):
+        return too_many(response, wait)
+    services.request_login_link(site(request), data.email, safe_next(data.next))
+    return 204, None
+
+
+@router.post(
+    "/auth/login-link/login",
+    response={204: None, 403: ErrorOut, 410: ErrorOut},
+    tags=["auth"],
+)
+def login_with_link(request: HttpRequest, data: LinkIn):
+    """Starts a session from the link in the email; the link stops working.
+    A POST from the page's button, not the link itself, so a mail scanner
+    that opens it doesn't use it up. Login rotates the CSRF token: read the
+    cookie again. 410 when the link is wrong, expired or used already."""
+    if answer := refused(
+        request, settings.AUTH_MAGIC_LINK, "Login link", password=False
+    ):
+        return answer
+    if (user := services.login_link_user(data.uid, data.token)) is None:
+        return 410, DEAD_LINK
+    # As modules/oauth: login() needs a backend when it didn't go through
+    # authenticate(), and modules/audit logs the method.
+    request.auth_provider = "login_link"
+    login(request, user, backend=settings.AUTHENTICATION_BACKENDS[0])
+    return 204, None

@@ -106,7 +106,9 @@ class LoginOptionsTest(TestCase):
         self.assertEqual(response["Cache-Control"], "public, max-age=300")
 
     # Not what the local .env turns on.
-    @override_settings(AUTH_SIGNUP=False, AUTH_PASSWORD_RESET=False)
+    @override_settings(
+        AUTH_SIGNUP=False, AUTH_PASSWORD_RESET=False, AUTH_MAGIC_LINK=False
+    )
     def test_only_the_password_without_modules(self):
         self.assertEqual(
             self.options(),
@@ -115,6 +117,7 @@ class LoginOptionsTest(TestCase):
                 "providers": [],
                 "signup": False,
                 "password_reset": False,
+                "magic_link": False,
             },
         )
 

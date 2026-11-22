@@ -76,6 +76,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/login-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Login Link
+         * @description Sends a link that logs in. 204 whether the email has an account or
+         *     not. Works with AUTH_PASSWORD off.
+         */
+        post: operations["modules_signup_api_request_login_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/login-link/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login With Link
+         * @description Starts a session from the link in the email; the link stops working.
+         *     A POST from the page's button, not the link itself, so a mail scanner
+         *     that opens it doesn't use it up. Login rotates the CSRF token: read the
+         *     cookie again. 410 when the link is wrong, expired or used already.
+         */
+        post: operations["modules_signup_api_login_with_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/logout": {
         parameters: {
             query?: never;
@@ -589,6 +633,16 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** LoginLinkIn */
+        LoginLinkIn: {
+            /** Email */
+            email: string;
+            /**
+             * Next
+             * @default
+             */
+            next: string;
+        };
         /** LoginOptionOut */
         LoginOptionOut: {
             /** Label */
@@ -600,6 +654,8 @@ export interface components {
         };
         /** LoginOptionsOut */
         LoginOptionsOut: {
+            /** Magic Link */
+            magic_link: boolean;
             /** Password */
             password: boolean;
             /** Password Reset */
@@ -918,6 +974,95 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_request_login_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginLinkIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    modules_signup_api_login_with_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };

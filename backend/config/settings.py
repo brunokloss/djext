@@ -124,7 +124,7 @@ INSTALLED_APPS = [
     "modules.queue",
     "modules.cache",
     "modules.mail",
-    # Off until AUTH_SIGNUP or AUTH_PASSWORD_RESET is on (below).
+    # Off until AUTH_SIGNUP, AUTH_PASSWORD_RESET or AUTH_MAGIC_LINK is on (below).
     "modules.signup",
 ]
 
@@ -237,16 +237,20 @@ LOGIN_URL = "/login"
 # when it is opened directly on Django). False leaves only the providers below.
 AUTH_PASSWORD = config("AUTH_PASSWORD", default=True, cast=bool)
 
-# Self-service accounts (modules/signup), both off: djext is B2B, the team
+# Self-service accounts (modules/signup), all off: djext is B2B, the team
 # creates the accounts in the admin. AUTH_SIGNUP lets anyone sign up with
 # email and password (/signup), the account inactive until they open the link
 # sent by email. AUTH_PASSWORD_RESET sends a link to choose a new password
-# (/forgot-password). The links expire after PASSWORD_RESET_TIMEOUT seconds.
+# (/forgot-password). AUTH_MAGIC_LINK sends a link that logs in (/login-link),
+# with or without AUTH_PASSWORD, only to accounts that exist and are active.
+# The links expire after PASSWORD_RESET_TIMEOUT seconds.
 AUTH_SIGNUP = config("AUTH_SIGNUP", default=False, cast=bool)
 AUTH_PASSWORD_RESET = config("AUTH_PASSWORD_RESET", default=False, cast=bool)
+AUTH_MAGIC_LINK = config("AUTH_MAGIC_LINK", default=False, cast=bool)
 PASSWORD_RESET_TIMEOUT = 60 * 60
 # Emails those send, per address and per IP, as in the login limits above.
-# The address's limit counts the confirmation links and the resets apart.
+# The address's limit counts the confirmation links, the resets and the login
+# links apart.
 # Past it they answer 429 and send nothing.
 AUTH_MAIL_THROTTLE_EMAIL = config("AUTH_MAIL_THROTTLE_EMAIL", default="3/h")
 AUTH_MAIL_THROTTLE_IP = config("AUTH_MAIL_THROTTLE_IP", default="20/h")
