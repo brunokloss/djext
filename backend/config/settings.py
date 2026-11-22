@@ -244,15 +244,15 @@ AUTH_PASSWORD = config("AUTH_PASSWORD", default=True, cast=bool)
 # sent by email. AUTH_PASSWORD_RESET sends a link to choose a new password
 # (/forgot-password). AUTH_MAGIC_LINK logs in with a link sent by email
 # instead of the password (AUTH_PASSWORD=False: one or the other), only for
-# accounts that exist and are active. The links expire after PASSWORD_RESET_TIMEOUT seconds.
+# accounts that exist and are active. The links expire after
+# PASSWORD_RESET_TIMEOUT seconds.
 AUTH_SIGNUP = config("AUTH_SIGNUP", default=False, cast=bool)
 AUTH_PASSWORD_RESET = config("AUTH_PASSWORD_RESET", default=False, cast=bool)
 AUTH_MAGIC_LINK = config("AUTH_MAGIC_LINK", default=False, cast=bool)
 PASSWORD_RESET_TIMEOUT = 60 * 60
 # Emails those send, per address and per IP, as in the login limits above.
 # The address's limit counts the confirmation links, the resets and the login
-# links apart.
-# Past it they answer 429 and send nothing.
+# links apart. Past it they answer 429 and send nothing.
 AUTH_MAIL_THROTTLE_EMAIL = config("AUTH_MAIL_THROTTLE_EMAIL", default="3/h")
 AUTH_MAIL_THROTTLE_IP = config("AUTH_MAIL_THROTTLE_IP", default="20/h")
 
