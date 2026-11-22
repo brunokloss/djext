@@ -238,7 +238,7 @@ LOGIN_URL = "/login"
 # (AUTH_MAGIC_LINK) and the providers below.
 # `manage.py test` takes the defaults of these switches, whatever the local
 # .env says (as for CACHE_URL): a test that wants one on turns it on.
-AUTH_PASSWORD = TESTING or config("AUTH_PASSWORD", default=True, cast=bool)
+AUTH_PASSWORD = True if TESTING else config("AUTH_PASSWORD", default=True, cast=bool)
 
 # Self-service accounts (modules/signup), all off: djext is B2B, the team
 # creates the accounts in the admin. AUTH_SIGNUP lets anyone sign up with
@@ -248,11 +248,13 @@ AUTH_PASSWORD = TESTING or config("AUTH_PASSWORD", default=True, cast=bool)
 # instead of the password (AUTH_PASSWORD=False: one or the other), only for
 # accounts that exist and are active. The links expire after
 # PASSWORD_RESET_TIMEOUT seconds.
-AUTH_SIGNUP = not TESTING and config("AUTH_SIGNUP", default=False, cast=bool)
-AUTH_PASSWORD_RESET = not TESTING and config(
-    "AUTH_PASSWORD_RESET", default=False, cast=bool
+AUTH_SIGNUP = False if TESTING else config("AUTH_SIGNUP", default=False, cast=bool)
+AUTH_PASSWORD_RESET = (
+    False if TESTING else config("AUTH_PASSWORD_RESET", default=False, cast=bool)
 )
-AUTH_MAGIC_LINK = not TESTING and config("AUTH_MAGIC_LINK", default=False, cast=bool)
+AUTH_MAGIC_LINK = (
+    False if TESTING else config("AUTH_MAGIC_LINK", default=False, cast=bool)
+)
 PASSWORD_RESET_TIMEOUT = 60 * 60
 # Emails those send, per address and per IP, as in the login limits above.
 # The address's limit counts the confirmation links, the resets and the login
