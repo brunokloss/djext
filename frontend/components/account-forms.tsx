@@ -180,7 +180,7 @@ function BackToLogin() {
 
 export function SignupForm() {
   // Controlled, so a refused password keeps what was typed in the others.
-  const [values, setValues] = useState({ name: "", email: "" });
+  const [values, setValues] = useState({ first: "", last: "", email: "" });
   const pair = usePasswordPair();
   const [sent, setSent] = useState(false);
   const [state, signup, pending] = useActionState(async (): Promise<State> => {
@@ -189,8 +189,8 @@ export function SignupForm() {
       body: {
         email: values.email,
         password: pair.password,
-        first_name: values.name,
-        last_name: "",
+        first_name: values.first,
+        last_name: values.last,
       },
     });
     if (error) return { error: error.detail };
@@ -200,24 +200,30 @@ export function SignupForm() {
   if (sent)
     return (
       <AuthCard title="Check your email">
-        <CheckEmail
-          email={values.email}
-          onChangeEmail={() => setSent(false)}
-        />
+        <CheckEmail email={values.email} onChangeEmail={() => setSent(false)} />
       </AuthCard>
     );
 
   return (
     <AuthCard title="Sign up" description="Create your account">
       <form action={signup} className="flex flex-col gap-4">
-        <Field
-          id="name"
-          autoFocus
-          label="Name"
-          autoComplete="name"
-          value={values.name}
-          onChange={(e) => setValues({ ...values, name: e.target.value })}
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <Field
+            id="first_name"
+            autoFocus
+            label="First name"
+            autoComplete="given-name"
+            value={values.first}
+            onChange={(e) => setValues({ ...values, first: e.target.value })}
+          />
+          <Field
+            id="last_name"
+            label="Last name"
+            autoComplete="family-name"
+            value={values.last}
+            onChange={(e) => setValues({ ...values, last: e.target.value })}
+          />
+        </div>
         <Field
           id="email"
           label="Email"

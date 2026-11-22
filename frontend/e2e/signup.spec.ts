@@ -36,7 +36,8 @@ test("sign up, confirm the email and log in", async ({ page }) => {
   await page.goto("/login");
   await page.getByRole("link", { name: "Sign up" }).click();
   await expect(page).toHaveURL("/signup");
-  await page.getByLabel("Name").fill("Eve");
+  await page.getByLabel("First name").fill("Eve");
+  await page.getByLabel("Last name").fill("Adams");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
   // A typo shows while typing, and the button waits.
