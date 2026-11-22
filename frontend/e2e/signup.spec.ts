@@ -39,13 +39,12 @@ test("sign up, confirm the email and log in", async ({ page }) => {
   await page.getByLabel("Name").fill("Eve");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password", { exact: true }).fill(password);
+  // A typo shows while typing, and the button waits.
   await page.getByLabel("Confirm password").fill("a-typo");
-  await page.getByRole("button", { name: "Sign up" }).click();
-  await expect(
-    page.getByText("The two passwords are not the same"),
-  ).toBeVisible();
-  await page.getByLabel("Password", { exact: true }).fill(password);
+  await expect(page.getByText("The passwords don't match")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign up" })).toBeDisabled();
   await page.getByLabel("Confirm password").fill(password);
+  await expect(page.getByText("The passwords don't match")).toBeHidden();
   await page.getByRole("button", { name: "Sign up" }).click();
   await expect(page.getByText("Check your email")).toBeVisible();
 

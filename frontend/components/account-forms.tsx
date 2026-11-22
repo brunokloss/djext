@@ -28,12 +28,50 @@ function Field({
   );
 }
 
-// Typed twice, so a typo doesn't lock the person out. Checked here: the
-// backend gets one password.
-const MISMATCH = "The two passwords are not the same.";
-function samePassword(form: FormData): string | null {
-  const password = String(form.get("password"));
-  return password === String(form.get("password2")) ? password : null;
+// The password typed twice, so a typo doesn't lock the person out. Checked
+// while typing: the second one is wrong as soon as it stops matching the
+// start of the first (or on leaving it), and the button waits until both are
+// the same. Controlled, so a refused password (too weak) keeps both.
+function usePasswordPair() {
+  const [password, setPassword] = useState("");
+  const [again, setAgain] = useState("");
+  const [left, setLeft] = useState(false);
+  const wrong =
+    again !== "" && (left ? again !== password : !password.startsWith(again));
+  return {
+    password,
+    same: password !== "" && password === again,
+    fields: (labels: [string, string]) => (
+      <>
+        <Field
+          id="password"
+          label={labels[0]}
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <div className="flex flex-col gap-2">
+          <Field
+            id="password2"
+            label={labels[1]}
+            type="password"
+            autoComplete="new-password"
+            value={again}
+            onChange={(e) => setAgain(e.target.value)}
+            onBlur={() => setLeft(true)}
+            aria-invalid={wrong}
+            aria-describedby={wrong ? "password2-error" : undefined}
+          />
+          {wrong && (
+            <p id="password2-error" className="text-sm text-destructive">
+              The passwords don't match.
+            </p>
+          )}
+        </div>
+      </>
+    ),
+  };
 }
 
 function Alert({ error }: { error?: string }) {
@@ -67,22 +105,18 @@ function BackToLogin() {
 export function SignupForm() {
   // Controlled, so a refused password keeps what was typed in the others.
   const [values, setValues] = useState({ name: "", email: "" });
-  const [state, signup, pending] = useActionState(
-    async (_previous: State, form: FormData): Promise<State> => {
-      const password = samePassword(form);
-      if (password === null) return { error: MISMATCH };
-      const { error } = await api.POST("/api/auth/signup", {
-        body: {
-          email: values.email,
-          password,
-          first_name: values.name,
-          last_name: "",
-        },
-      });
-      return error ? { error: error.detail } : { done: true };
-    },
-    {},
-  );
+  const pair = usePasswordPair();
+  const [state, signup, pending] = useActionState(async (): Promise<State> => {
+    const { error } = await api.POST("/api/auth/signup", {
+      body: {
+        email: values.email,
+        password: pair.password,
+        first_name: values.name,
+        last_name: "",
+      },
+    });
+    return error ? { error: error.detail } : { done: true };
+  }, {});
   if (state.done)
     return (
       <>
@@ -111,20 +145,9 @@ export function SignupForm() {
         value={values.email}
         onChange={(e) => setValues({ ...values, email: e.target.value })}
       />
-      <Field
-        id="password"
-        label="Password"
-        type="password"
-        autoComplete="new-password"
-      />
-      <Field
-        id="password2"
-        label="Confirm password"
-        type="password"
-        autoComplete="new-password"
-      />
+      {pair.fields(["Password", "Confirm password"])}
       <Alert error={state.error} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || !pair.same}>
         {pending ? "Signing up…" : "Sign up"}
       </Button>
       <p className="text-center text-sm text-muted-foreground">
@@ -237,17 +260,13 @@ export function ResetPasswordForm({
   uid: string;
   token: string;
 }) {
-  const [state, reset, pending] = useActionState(
-    async (_previous: State, form: FormData): Promise<State> => {
-      const password = samePassword(form);
-      if (password === null) return { error: MISMATCH };
-      const { error } = await api.POST("/api/auth/password/reset", {
-        body: { uid, token, password },
-      });
-      return error ? { error: error.detail } : { done: true };
-    },
-    {},
-  );
+  const pair = usePasswordPair();
+  const [state, reset, pending] = useActionState(async (): Promise<State> => {
+    const { error } = await api.POST("/api/auth/password/reset", {
+      body: { uid, token, password: pair.password },
+    });
+    return error ? { error: error.detail } : { done: true };
+  }, {});
   if (state.done)
     return (
       <>
@@ -260,20 +279,9 @@ export function ResetPasswordForm({
 
   return (
     <form action={reset} className="flex flex-col gap-4">
-      <Field
-        id="password"
-        label="New password"
-        type="password"
-        autoComplete="new-password"
-      />
-      <Field
-        id="password2"
-        label="Confirm the new password"
-        type="password"
-        autoComplete="new-password"
-      />
+      {pair.fields(["New password", "Confirm the new password"])}
       <Alert error={state.error} />
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" disabled={pending || !pair.same}>
         {pending ? "Saving…" : "Save the password"}
       </Button>
     </form>
