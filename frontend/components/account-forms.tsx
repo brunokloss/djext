@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api/client";
+import { useClearApiCache } from "@/lib/api/hooks";
 
 // The forms of the self-service pages (backend/modules/signup): sign up,
-// verify the email, forgot and reset the password. Each posts from the
+// verify the email, forgot and reset the password, log in with a link. Each posts from the
 // browser through the Next proxy, like the login form. The ones that send an
 // email get the same answer whether the email has an account or not.
 
@@ -369,6 +370,89 @@ export function ForgotPasswordForm() {
       </form>
       <BackToLogin />
     </AuthCard>
+  );
+}
+
+// Asks for an email and sends it a link that logs in, then goes to `next`.
+// On /login-link (`standalone`: with a way back to the login), and on /login
+// itself when there is no password login.
+export function LoginLinkForm({
+  next,
+  standalone = false,
+}: {
+  next?: string;
+  standalone?: boolean;
+}) {
+  const [email, setEmail] = useState("");
+  const [state, ask, pending] = useActionState(async (): Promise<State> => {
+    const { error } = await api.POST("/api/auth/login-link", {
+      body: { email, next: next ?? "" },
+    });
+    return error ? { error: error.detail } : { done: true };
+  }, {});
+  if (state.done) return <CheckEmail email={email} />;
+
+  return (
+    <>
+      <form action={ask} className="flex flex-col gap-4">
+        <Field
+          id="email"
+          autoFocus={standalone}
+          label="Email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <Alert error={state.error} />
+        <Button type="submit" disabled={pending}>
+          {pending ? "Sending…" : "Email me a login link"}
+        </Button>
+      </form>
+      {standalone && <BackToLogin />}
+    </>
+  );
+}
+
+// The page the login link opens. Logging in waits for the button: a mail
+// scanner that opens the link must not use it up. A dead link offers a new
+// one.
+export function UseLoginLink({
+  uid,
+  token,
+  next,
+}: {
+  uid: string;
+  token: string;
+  next?: string;
+}) {
+  const router = useRouter();
+  const clearApiCache = useClearApiCache();
+  const [state, login, pending] = useActionState(async (): Promise<State> => {
+    const { error } = await api.POST("/api/auth/login-link/login", {
+      body: { uid, token },
+    });
+    if (error) return { error: error.detail };
+    await clearApiCache();
+    // As the login form: `next` may be a Django page.
+    if (next) window.location.assign(next);
+    else router.replace("/");
+    return { done: true };
+  }, {});
+
+  if (state.error)
+    return (
+      <>
+        <Alert error={state.error} />
+        <LoginLinkForm next={next} standalone />
+      </>
+    );
+  return (
+    <form action={login} className="flex flex-col gap-4">
+      <Button type="submit" autoFocus disabled={pending || state.done}>
+        {pending || state.done ? "Logging in…" : "Log in"}
+      </Button>
+    </form>
   );
 }
 

@@ -2,6 +2,7 @@ import { CircleCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { LoginLinkForm } from "@/components/account-forms";
 import { AuthCard } from "@/components/auth-card";
 import { LoginForm } from "@/components/login-form";
 import { buttonVariants } from "@/components/ui/button";
@@ -73,7 +74,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           Continue with {option.label}
         </a>
       ))}
-      {options?.providers.length && options.password ? (
+      {options?.providers.length && (options.password || options.magic_link) ? (
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
           <span className="h-px flex-1 bg-border" />
           or
@@ -81,6 +82,19 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         </div>
       ) : null}
       {options?.password && <LoginForm next={next} />}
+      {/* A login link by email (backend/modules/signup), off by default:
+          its own page next to the password, the only form without it. */}
+      {options?.magic_link &&
+        (options.password ? (
+          <Link
+            href={`/login-link${query}`}
+            className={cn(buttonVariants({ variant: "outline" }))}
+          >
+            Email me a login link
+          </Link>
+        ) : (
+          <LoginLinkForm next={next} />
+        ))}
       {/* Self-service accounts (backend/modules/signup), off by default. */}
       {options?.password_reset && (
         <Link

@@ -13,6 +13,7 @@ const PUBLIC_PAGES = new Set([
   "/verify",
   "/forgot-password",
   "/reset-password",
+  "/login-link",
 ]);
 
 // Where an anonymous visit to `pathname` must go, or null to let it through.

@@ -34,6 +34,7 @@ test("the logged-out pages, Django and files are left alone", () => {
     "/verify",
     "/forgot-password",
     "/reset-password",
+    "/login-link",
     "/api",
     "/api/docs",
     "/_next/data/x.json",
