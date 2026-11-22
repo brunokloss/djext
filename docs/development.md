@@ -64,7 +64,7 @@ Both are read when the app is built: set them before `next build` (the image tak
 
 `make test-back` ends with the coverage report: the total and, for each file not fully covered, the lines no test runs. There is no minimum; it shows when something arrives without tests. `uv run coverage html` (from `backend/`) writes `htmlcov/` to browse them.
 
-The backend tests ignore what `.env` says for the login switches (`AUTH_PASSWORD`, `AUTH_SIGNUP`, `AUTH_PASSWORD_RESET`, `AUTH_MAGIC_LINK`): they run with the defaults (`config/test_runner.py`), and a test that wants one on turns it on with `override_settings`.
+`manage.py test` ignores what `.env` says for the cache, storage, Sentry and the login switches: it runs with the database cache, files on disk, no Sentry and the login switches as they ship (`TEST_ENV` in `backend/manage.py`, set before the settings load), so the suite gives the same result on every machine and never reaches a real service. A test that wants another value uses `override_settings`; a new setting the tests must not take from `.env` goes in `TEST_ENV`. Logs stay out of the output (`config/test_runner.py`).
 
 The e2e tests exercise the whole stack: they migrate, create the example users and go through login and logout. Playwright reuses `make dev` if it is already running; otherwise it starts both servers itself.
 
