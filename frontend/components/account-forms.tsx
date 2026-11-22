@@ -374,8 +374,8 @@ export function ForgotPasswordForm() {
 }
 
 // Asks for an email and sends it a link that logs in, then goes to `next`.
-// On /login-link (`standalone`: with a way back to the login), and on /login
-// itself when there is no password login.
+// The login page's form when the link replaces the password, and again on a
+// dead link (`standalone`: with a way back to the login).
 export function LoginLinkForm({
   next,
   standalone = false,
@@ -397,7 +397,7 @@ export function LoginLinkForm({
       <form action={ask} className="flex flex-col gap-4">
         <Field
           id="email"
-          autoFocus={standalone}
+          autoFocus
           label="Email"
           type="email"
           autoComplete="email"

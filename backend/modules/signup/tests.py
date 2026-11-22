@@ -7,6 +7,7 @@ from django.contrib.auth.signals import user_logged_in
 from django.test import Client, TestCase, override_settings
 from post_office.models import Email, EmailTemplate
 
+from .checks import login_link_or_password
 from .models import Signup
 from .tokens import login_link_tokens, reset_tokens, verify_tokens
 
@@ -24,9 +25,12 @@ def link(email: Email) -> dict:
     return {"path": url.path, "uid": query["uid"][0], "token": query["token"][0]}
 
 
+# Whatever the local .env says.
 @override_settings(
+    AUTH_PASSWORD=True,
     AUTH_SIGNUP=True,
     AUTH_PASSWORD_RESET=True,
+    AUTH_MAGIC_LINK=False,
     ALLOWED_HOSTS=["localhost", "testserver"],
 )
 class SignupTestCase(TestCase):
@@ -401,7 +405,8 @@ class SettingsTest(SignupTestCase):
         self.assertEqual(self.post("password/forgot", email="d@b.co").status_code, 429)
 
 
-@override_settings(AUTH_MAGIC_LINK=True)
+# In place of the password, as checks.py asks.
+@override_settings(AUTH_MAGIC_LINK=True, AUTH_PASSWORD=False)
 class LoginLinkTest(SignupTestCase):
     def setUp(self):
         self.user = User.objects.create_user(
@@ -438,17 +443,16 @@ class LoginLinkTest(SignupTestCase):
         # Logging in changed the last login: the link is used.
         self.assertEqual(self.use(found).status_code, 410)
 
-    def test_works_without_a_password_and_with_password_login_off(self):
+    def test_works_for_a_user_without_a_password(self):
         User.objects.create_user(email="sso@example.com")
-        with self.settings(AUTH_PASSWORD=False):
-            self.assertEqual(self.ask("sso@example.com").status_code, 204)
-            self.assertEqual(self.use(link(Email.objects.get())).status_code, 204)
+        self.assertEqual(self.ask("sso@example.com").status_code, 204)
+        self.assertEqual(self.use(link(Email.objects.get())).status_code, 204)
 
     def test_any_other_login_kills_the_link(self):
         self.ask()
         found = link(Email.objects.get())
-        login = self.post("login", email="ana@example.com", password="old")
-        self.assertEqual(login.status_code, 200)
+        # A provider's login, say: anything that calls login().
+        self.client.force_login(self.user)
         self.client.post("/api/auth/logout")
         self.assertEqual(self.use(found).status_code, 410)
 
@@ -491,7 +495,9 @@ class LoginLinkTest(SignupTestCase):
         self.assertFalse(Email.objects.exists())
 
     def test_a_user_waiting_for_verification_gets_that_link(self):
-        self.signup()
+        # Signed up while the password was on.
+        with self.settings(AUTH_PASSWORD=True):
+            self.signup()
         self.ask("new@example.com")
         names = list(Email.objects.values_list("template__name", flat=True))
         self.assertEqual(names, ["verify_email", "verify_email"])
@@ -511,7 +517,8 @@ class LoginLinkTest(SignupTestCase):
     def test_has_its_own_email_limit(self):
         self.assertEqual(self.ask().status_code, 204)
         self.assertEqual(self.ask().status_code, 429)
-        reset = self.post("password/forgot", email="ana@example.com")
+        with self.settings(AUTH_PASSWORD=True):
+            reset = self.post("password/forgot", email="ana@example.com")
         self.assertEqual(reset.status_code, 204)
 
     def test_off_by_default(self):
@@ -537,3 +544,11 @@ class LoginLinkTest(SignupTestCase):
 
     def test_the_email_template_is_created_by_the_migration(self):
         self.assertTrue(EmailTemplate.objects.filter(name="login_link").exists())
+
+    def test_the_password_and_the_link_are_one_or_the_other(self):
+        self.assertEqual(login_link_or_password(None), [])
+        with self.settings(AUTH_PASSWORD=True):
+            errors = login_link_or_password(None)
+        self.assertEqual([e.id for e in errors], ["signup.E001"])
+        with self.settings(AUTH_PASSWORD=True, AUTH_MAGIC_LINK=False):
+            self.assertEqual(login_link_or_password(None), [])
