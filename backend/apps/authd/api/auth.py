@@ -148,6 +148,8 @@ class LoginOptionsOut(Schema):
     # /forgot-password.
     signup: bool
     password_reset: bool
+    # A login link sent by email (modules/signup): /login-link.
+    magic_link: bool
 
 
 # Public and the same for everyone, and settings only change when the app
@@ -159,13 +161,16 @@ def list_login_options(request: HttpRequest):
     """Which ways to log in are on, so the login page only shows those: the
     password, and what the modules return (modules/signals/signals.py)."""
     sent = login_options_requested.send(list_login_options)
-    # Both need the password, and are off when modules/signup is removed.
-    signup = apps.is_installed("modules.signup") and settings.AUTH_PASSWORD
+    # Off when modules/signup is removed. Sign-up and reset need the
+    # password; the login link doesn't.
+    installed = apps.is_installed("modules.signup")
+    signup = installed and settings.AUTH_PASSWORD
     return {
         "password": settings.AUTH_PASSWORD,
         "providers": [option for _, options in sent for option in options],
         "signup": signup and settings.AUTH_SIGNUP,
         "password_reset": signup and settings.AUTH_PASSWORD_RESET,
+        "magic_link": installed and settings.AUTH_MAGIC_LINK,
     }
 
 

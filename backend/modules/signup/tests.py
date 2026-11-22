@@ -3,11 +3,12 @@ from unittest import mock
 from urllib.parse import parse_qs, urlsplit
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.signals import user_logged_in, user_login_failed
 from django.test import Client, TestCase, override_settings
 from post_office.models import Email, EmailTemplate
 
 from .models import Signup
-from .tokens import verify_tokens
+from .tokens import login_link_tokens, reset_tokens, verify_tokens
 
 User = get_user_model()
 PASSWORD = "a-long-new-password"
@@ -398,3 +399,152 @@ class SettingsTest(SignupTestCase):
         for email in ("a@b.co", "c@b.co"):
             self.assertEqual(self.post("password/forgot", email=email).status_code, 204)
         self.assertEqual(self.post("password/forgot", email="d@b.co").status_code, 429)
+
+
+@override_settings(AUTH_MAGIC_LINK=True)
+class LoginLinkTest(SignupTestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="ana@example.com", password="old", first_name="Ana"
+        )
+
+    def ask(self, email="ana@example.com", **body):
+        return self.post("login-link", email=email, **body)
+
+    def use(self, found):
+        return self.post("login-link/login", uid=found["uid"], token=found["token"])
+
+    def test_sends_a_link_that_logs_in_once(self):
+        self.assertEqual(self.ask(" Ana@Example.com ").status_code, 204)
+        email = Email.objects.get()
+        self.assertEqual(email.template.name, "login_link")
+        self.assertEqual(email.context["name"], "Ana")
+        found = link(email)
+        self.assertEqual(found["path"], "/login-link")
+        self.assertTrue(
+            email.context["url"].startswith("http://localhost:3000/login-link?")
+        )
+        methods = []
+
+        def on_login(request, **kwargs):
+            methods.append(request.auth_provider)
+
+        user_logged_in.connect(on_login)
+        self.addCleanup(user_logged_in.disconnect, on_login)
+        self.assertEqual(self.use(found).status_code, 204)
+        self.assertEqual(methods, ["login_link"])
+        me = self.client.get("/api/users/me").json()
+        self.assertEqual(me["email"], "ana@example.com")
+        # Logging in changed the last login: the link is used.
+        self.assertEqual(self.use(found).status_code, 410)
+
+    def test_works_without_a_password_and_with_password_login_off(self):
+        User.objects.create_user(email="sso@example.com")
+        with self.settings(AUTH_PASSWORD=False):
+            self.assertEqual(self.ask("sso@example.com").status_code, 204)
+            self.assertEqual(self.use(link(Email.objects.get())).status_code, 204)
+
+    def test_any_other_login_kills_the_link(self):
+        self.ask()
+        found = link(Email.objects.get())
+        login = self.post("login", email="ana@example.com", password="old")
+        self.assertEqual(login.status_code, 200)
+        self.client.post("/api/auth/logout")
+        self.assertEqual(self.use(found).status_code, 410)
+
+    def test_a_new_password_kills_the_link(self):
+        self.ask()
+        found = link(Email.objects.get())
+        self.user.set_password("new-one")
+        self.user.save()
+        self.assertEqual(self.use(found).status_code, 410)
+
+    def test_expires(self):
+        self.ask()
+        found = link(Email.objects.get())
+        later = datetime.now() + timedelta(hours=2)
+        with mock.patch.object(login_link_tokens, "_now", return_value=later):
+            self.assertEqual(self.use(found).status_code, 410)
+
+    def test_a_user_blocked_after_the_email_cannot_use_it(self):
+        self.ask()
+        found = link(Email.objects.get())
+        self.user.is_active = False
+        self.user.save()
+        self.assertEqual(self.use(found).status_code, 410)
+        self.assertEqual(self.client.get("/api/users/me").status_code, 401)
+
+    def test_a_wrong_link_or_another_kind_of_token_is_refused(self):
+        uid = self.user.username
+        for token in ("x", reset_tokens.make_token(self.user)):
+            self.assertEqual(self.use({"uid": uid, "token": token}).status_code, 410)
+        self.assertEqual(self.use({"uid": "nope", "token": "x"}).status_code, 410)
+        # Nor does a login link reset a password.
+        self.ask()
+        token = link(Email.objects.get())["token"]
+        self.assertFalse(reset_tokens.check_token(self.user, token))
+
+    def test_a_dead_link_is_a_failed_login(self):
+        failures = []
+
+        def on_failure(credentials, **kwargs):
+            failures.append(credentials)
+
+        user_login_failed.connect(on_failure)
+        self.addCleanup(user_login_failed.disconnect, on_failure)
+        self.use({"uid": self.user.username, "token": "x"})
+        self.assertEqual(failures, [{"provider": "login_link", "reason": "dead_link"}])
+
+    def test_the_same_answer_for_any_email(self):
+        User.objects.create_user(email="off@example.com", is_active=False)
+        for email in ("nobody@example.com", "off@example.com"):
+            self.assertEqual(self.ask(email).status_code, 204)
+        self.assertFalse(Email.objects.exists())
+
+    def test_a_user_waiting_for_verification_gets_that_link(self):
+        self.signup()
+        self.ask("new@example.com")
+        names = list(Email.objects.values_list("template__name", flat=True))
+        self.assertEqual(names, ["verify_email", "verify_email"])
+
+    @override_settings(AUTH_MAIL_THROTTLE_EMAIL="")
+    def test_carries_next_when_it_is_a_path_here(self):
+        self.ask(next="/notes?page=2")
+        url = urlsplit(Email.objects.get().context["url"])
+        self.assertEqual(parse_qs(url.query)["next"], ["/notes?page=2"])
+        for next in ("https://evil.example", "//evil.example", "notes"):
+            Email.objects.all().delete()
+            self.ask(next=next)
+            url = urlsplit(Email.objects.get().context["url"])
+            self.assertNotIn("next", parse_qs(url.query))
+
+    @override_settings(AUTH_MAIL_THROTTLE_EMAIL="1/h", AUTH_MAIL_THROTTLE_IP="")
+    def test_has_its_own_email_limit(self):
+        self.assertEqual(self.ask().status_code, 204)
+        self.assertEqual(self.ask().status_code, 429)
+        reset = self.post("password/forgot", email="ana@example.com")
+        self.assertEqual(reset.status_code, 204)
+
+    def test_off_by_default(self):
+        self.ask()
+        found = link(Email.objects.get())
+        with self.settings(AUTH_MAGIC_LINK=False):
+            self.assertEqual(self.ask().status_code, 403)
+            self.assertEqual(self.use(found).status_code, 403)
+            self.assertFalse(
+                self.client.get("/api/auth/providers").json()["magic_link"]
+            )
+        self.assertTrue(self.client.get("/api/auth/providers").json()["magic_link"])
+
+    def test_requires_csrf(self):
+        client = Client(enforce_csrf_checks=True)
+        for path in ("login-link", "login-link/login"):
+            response = client.post(
+                f"/api/auth/{path}",
+                {"email": "ana@example.com", "uid": "x", "token": "x"},
+                content_type="application/json",
+            )
+            self.assertEqual(response.status_code, 403)
+
+    def test_the_email_template_is_created_by_the_migration(self):
+        self.assertTrue(EmailTemplate.objects.filter(name="login_link").exists())

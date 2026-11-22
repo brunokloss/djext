@@ -1,15 +1,17 @@
-"""Sign-up, email verification and password reset: the services the API
-(api.py) calls. Nobody is logged in for these: the actor is anonymous, and
-the actions name the user as their target.
+"""Sign-up, email verification, password reset and login links: the services
+the API (api.py) calls. Nobody is logged in for these: the actor is
+anonymous, and the actions name the user as their target.
 
 The ones that take an email (sign up, resend the verification, forgot the
-password) do the same work whether the email has an account or not, so the
-answer doesn't tell who has one: the password is hashed anyway and the email
-is only sent when there is someone to send it to.
+password, ask for a login link) do the same work whether the email has an
+account or not, so the answer doesn't tell who has one: the password is
+hashed anyway and the email is only sent when there is someone to send it to.
 
 Those that send a link take `site`, the frontend's address the link points to
 ("https://app.example.com"): the API builds it from the request.
 """
+
+from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -22,14 +24,15 @@ from post_office import mail
 from modules.signals.signals import action_performed
 
 from .models import Signup
-from .tokens import reset_tokens, verify_tokens
+from .tokens import login_link_tokens, reset_tokens, verify_tokens
 
 User = get_user_model()
 
 # The email templates (Post Office › Email templates in the admin), created
-# by migrations/0002_email_templates.py.
+# by migrations/0002_email_templates.py and 0003_login_link_template.py.
 VERIFY_TEMPLATE = "verify_email"
 RESET_TEMPLATE = "password_reset"
+LOGIN_LINK_TEMPLATE = "login_link"
 # Sign-up with an email that has an account: only its inbox learns it.
 EXISTS_TEMPLATE = "account_exists"
 
@@ -38,9 +41,13 @@ def normalize_email(email: str) -> str:
     return User.objects.normalize_email(email)
 
 
-def _send(site: str, user, template: str, path: str, token: str) -> None:
-    """Queues the email with a link to `path` on the frontend."""
-    url = f"{site.rstrip('/')}{path}?uid={user.username}&token={token}"
+def _send(
+    site: str, user, template: str, path: str, token: str, next: str = ""
+) -> None:
+    """Queues the email with a link to `path` on the frontend, and `next`,
+    the page to go to afterwards, when there is one."""
+    query = {"uid": user.username, "token": token} | ({"next": next} if next else {})
+    url = f"{site.rstrip('/')}{path}?{urlencode(query)}"
     mail.send(
         user.email,
         template=template,
@@ -211,4 +218,35 @@ def reset_password(uid: str, token: str, password: str):
         user.set_password(password)
         user.save(update_fields=["password"])
         action_performed.send(reset_password, name="auth.password_reset", target=user)
+    return user
+
+
+def request_login_link(site: str, email: str, next: str = "") -> None:
+    """Sends a link that logs in to an active user, with or without a
+    password, never to a blocked one. One waiting for their verification gets
+    that link instead, as in request_reset(). `next` is a path on the
+    frontend, checked by the caller."""
+    user = User.objects.filter(email__iexact=normalize_email(email)).first()
+    if user is not None and waiting(user):
+        _send_verification(site, user)
+        return
+    if user is None or not user.is_active:
+        return
+    token = login_link_tokens.make_token(user)
+    _send(site, user, LOGIN_LINK_TEMPLATE, "/login-link", token, next)
+    action_performed.send(
+        request_login_link, name="auth.login_link_request", target=user
+    )
+
+
+def login_link_user(uid: str, token: str):
+    """The active user a login link is for, or None when it is wrong, expired
+    or used already (any login since kills it). The caller logs them in."""
+    user = _user(uid)
+    if (
+        user is None
+        or not user.is_active
+        or not login_link_tokens.check_token(user, token)
+    ):
+        return None
     return user
