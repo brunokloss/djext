@@ -142,46 +142,21 @@ function Done({ children }: { children: React.ReactNode }) {
   );
 }
 
-// After a link was sent: where it went, how long it works, and a way to send
-// it again (after a minute) or, on sign-up, to fix the address.
+// After a link was sent: where it went and how long it works, and, on
+// sign-up, a way to fix the address.
 function CheckEmail({
   email,
-  resend,
   onChangeEmail,
 }: {
   email: string;
-  resend: () => Promise<string | undefined>;
   onChangeEmail?: () => void;
 }) {
-  const [wait, setWait] = useState(60);
-  const [note, setNote] = useState<string>();
-  useEffect(() => {
-    if (wait <= 0) return;
-    const timer = setTimeout(() => setWait(wait - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [wait]);
   return (
     <>
       <p role="status" className="text-center text-sm">
         We sent a link to <strong>{email}</strong>. It expires in 1 hour. Not
         there? Check your spam.
       </p>
-      {note && (
-        <p role="status" className="text-center text-sm text-muted-foreground">
-          {note}
-        </p>
-      )}
-      <Button
-        variant="outline"
-        disabled={wait > 0}
-        onClick={async () => {
-          const error = await resend();
-          setNote(error ?? "Sent again.");
-          setWait(60);
-        }}
-      >
-        {wait > 0 ? `Resend the email (${wait}s)` : "Resend the email"}
-      </Button>
       {onChangeEmail && (
         <Button variant="ghost" onClick={onChangeEmail}>
           Use a different email
@@ -227,12 +202,6 @@ export function SignupForm() {
       <AuthCard title="Check your email">
         <CheckEmail
           email={values.email}
-          resend={async () => {
-            const { error } = await api.POST("/api/auth/verify/resend", {
-              body: { email: values.email },
-            });
-            return error?.detail;
-          }}
           onChangeEmail={() => setSent(false)}
         />
       </AuthCard>
@@ -359,20 +328,16 @@ function EmailLinkForm({
 
 export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
-  const send = async () => {
+  const [state, ask, pending] = useActionState(async (): Promise<State> => {
     const { error } = await api.POST("/api/auth/password/forgot", {
       body: { email },
     });
-    return error?.detail;
-  };
-  const [state, ask, pending] = useActionState(async (): Promise<State> => {
-    const error = await send();
-    return error ? { error } : { done: true };
+    return error ? { error: error.detail } : { done: true };
   }, {});
   if (state.done)
     return (
       <AuthCard title="Check your email">
-        <CheckEmail email={email} resend={send} />
+        <CheckEmail email={email} />
       </AuthCard>
     );
 
